@@ -47,7 +47,7 @@ class Civilian(Agent):
         if self.moving == "moving":
             if self.pos == self.home:
                 self.destination = self.random.choice(self.activity_nodes)
-            elif self.pos == [b_node for b_node in self.activity_nodes if b_node in self.destination]:
+            elif self.pos == self.destination:
                 if randint(0,100) <= 79:
                     self.destination = self.home
                     print("Destination (80%:", self.destination)
