@@ -51,10 +51,8 @@ class Civilian(Agent):
             elif self.pos == self.destination:
                 if randint(0,100) <= 79:
                     self.destination = self.home
-                    print("Destination (80%:", self.destination)
                 else:
                     self.destination = self.random.choice([a_node for a_node in self.activity_nodes if a_node not in self.pos])
-                    print("Destination (20%):", self.destination)
             # Create list of possible neighbouring cells to move to. 
             self.update_neighbors()
             road_neighbours = []
@@ -118,12 +116,6 @@ class Civilian(Agent):
                 self.moving = "moving"
             else: 
                 self.timer -= 1
-
-
-        print("Destination:", self.destination)
-        print("self.pos:", self.pos)
-        print("Moving?", self.moving)
-        print("Timer:", self.timer) 
 
     def update_neighbors(self):
         '''
