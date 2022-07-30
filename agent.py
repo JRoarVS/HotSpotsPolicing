@@ -1,4 +1,5 @@
 from random import randint
+from turtle import right
 from mesa import Agent
 from numpy import random
 import operator
@@ -84,12 +85,24 @@ class Civilian(Agent):
                             wrong_dir.append(coordinate)
                 random_integer = randint(0, 100)
                 if ((random_integer <= 98) and (len(right_dir) > 0)):
-                    new_position = self.random.choice(right_dir) # move in right direction
+                    if (len(right_dir) > 1):
+                        for c in right_dir:
+                            if ((abs(distance[0]) >= abs(distance[1])) and (c[0] != self.pos[0])):
+                                best_position = c
+                            elif ((abs(distance[0]) <= abs(distance[1])) and (c[1] != self.pos[1])):
+                                best_position = c
+                        ri = randint(0,100)
+                        if ((ri > 80) and best_position):
+                                new_position = best_position
+                        else:
+                                new_position = self.random.choice(right_dir) # move in right direction
+                    else:
+                        new_position = self.random.choice(right_dir) # move in the right direction
                 else:
                     if (len(wrong_dir) > 0):
                         new_position = wrong_dir[0] # move in the wrong dir
                     else:
-                        new_position = self.pos
+                        new_position = self.pos # stand still
                 
                 self.prev_pos = self.pos
                 self.model.grid.move_agent(self, new_position)
