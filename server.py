@@ -8,9 +8,8 @@ from mesa.visualization.modules import ChartModule
 #set parameters
 set_height = 103
 set_width = 100
-n_agents = 300
 n_cops = 10
-
+n_agents = 300
 
 # Design the agent portrayal
 def agent_portrayal(agent):

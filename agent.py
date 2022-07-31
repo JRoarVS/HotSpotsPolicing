@@ -26,7 +26,16 @@ class Civilian(Agent):
     """
     A member of the general population, which can be a victim of street robbery.
     """
-    def __init__(self, unique_id, model, position, prev_position, activity_nodes, moving, destination, timer):
+    def __init__(self, 
+    unique_id, 
+    model, 
+    position, 
+    prev_position, 
+    activity_nodes, 
+    moving, 
+    destination, 
+    timer,
+    criminal_propensity):
         super().__init__(unique_id, model)
         self.pos = position
         self.typ = 'civilian'
@@ -38,11 +47,14 @@ class Civilian(Agent):
         self.moving = moving
         self.destination = destination
         self.timer = timer
+        #Offender parameters:
+        self.criminal_propensity = criminal_propensity
 
     def move(self):
         '''
         Inspect neighbours and move to the next cell towards the destination patch. 
         '''
+        print("Criminal propensity:", self.criminal_propensity)
         if self.moving == "moving":
             if self.pos == self.home:
                 self.destination = self.random.choice(self.activity_nodes)
@@ -158,7 +170,16 @@ class Cop(Agent):
     """
     A police agent that will patrol the map and react to crime.
     """
-    def __init__(self, unique_id, model, position, prev_position, patrol_node, moving, destination, timer):
+    def __init__(self, 
+    unique_id, 
+    model, 
+    position, 
+    prev_position, 
+    patrol_node, 
+    moving, 
+    destination, 
+    timer
+    ):
         super().__init__(unique_id, model)
         self.pos = position
         self.typ = 'cop'     
@@ -176,9 +197,7 @@ class Cop(Agent):
         '''
         if self.moving == "moving":
             if self.pos == self.destination:
-                print("Arrived?", self.destination)
                 self.destination = self.random_patrol_node_generator()
-                print("After:", self.destination)
             # Create list of possible neighbouring cells to move to. 
             self.update_neighbors()
             road_neighbours = []

@@ -1,6 +1,3 @@
-from itertools import count
-from pyexpat import model
-from random import choice
 from mesa import Model
 from mesa.time import RandomActivation
 from mesa.space import MultiGrid
@@ -42,12 +39,28 @@ class Map(Model):
         
         # Initialise civilian agents.
         #----------------------------------------------------------------
+        criminal_propensity_rate = 0.0925 # Rate of agents who have a criminal propensity rate greater than 0.
+        chronic_offender_rate = 0.05 # Of those with criminal propensity, 5% have a chronic score (propensity = 10).
+        
+        criminal_total = int(self.num_agents * criminal_propensity_rate) # Number of agents with criminal propensity greater than 0.
+        chronic_criminal = int(criminal_total * chronic_offender_rate) # Number of chronic offenders.
+        criminal_non_chronic = int(self.num_agents * criminal_propensity_rate - chronic_criminal) # Number of non-chronic agents with greater criminal propensity than 0.
+        
         for i_k in range(self.num_agents):
             position = self.random_activity_generator() 
             prev_position = self.random_activity_generator()
             moving = "moving"
             destination = []
             timer = 0
+
+            if criminal_non_chronic > 0:
+                criminal_propensity = self.random.choice(range(6,10,1)) # Propensity score between 6 and 9
+                criminal_non_chronic -= 1
+            elif chronic_criminal > 0:
+                criminal_propensity = 10 # Propensity score of 10
+                chronic_criminal -= 1
+            else:
+                criminal_propensity = 0 # Propensity score of 0
 
             # Assign random activity nodes for the agents. This will be their routine activities.
             activity_nodes = []
@@ -56,7 +69,7 @@ class Map(Model):
                 activity = self.random_activity_generator()
                 activity_nodes.append(activity)         
 
-            a = Civilian(i_k, self, position, prev_position, activity_nodes, moving, destination, timer)
+            a = Civilian(i_k, self, position, prev_position, activity_nodes, moving, destination, timer, criminal_propensity)
             self.schedule.add(a)
             self.grid.place_agent(a, position)
 
