@@ -11,7 +11,7 @@ class StreetPatch(Agent):
         '''sets up the agent instance'''
         super().__init__(unique_id, model)
 
-        #Create a list of x and y cor to generate a grid layout.
+        # Create a list of x and y cor to generate a grid layout.
         roads_xcor = list(range(0,400,3))
         roads_ycor = list(range(0,400,6))
         self.pos = position
@@ -35,26 +35,40 @@ class Civilian(Agent):
     moving, 
     destination, 
     timer,
-    criminal_propensity):
+    criminal_propensity,
+    chronic_offender,
+    travel_speed,
+    time_to_offending,
+    victimisation,
+    attractiveness,
+    perceieved_guardianship,
+    perceieved_capability):
         super().__init__(unique_id, model)
         self.pos = position
         self.typ = 'civilian'
         self.ethnicity = self.assign_ethnic()       
-        #Agent movement:
+        # Agent movement:
         self.home = position
         self.prev_pos = prev_position
         self.activity_nodes = activity_nodes
         self.moving = moving
         self.destination = destination
         self.timer = timer
-        #Offender parameters:
+        self.travel_speed = travel_speed
+        # Offender parameters:
         self.criminal_propensity = criminal_propensity
+        self.chronic_offender = chronic_offender
+        self.time_to_offending = time_to_offending
+        # Victimisation parameters:
+        self.victimisation = victimisation
+        self.attractiveness = attractiveness
+        self.perceived_guardianship = perceieved_guardianship
+        self.perceived_capability = perceieved_capability
 
     def move(self):
         '''
         Inspect neighbours and move to the next cell towards the destination patch. 
         '''
-        print("Criminal propensity:", self.criminal_propensity)
         if self.moving == "moving":
             if self.pos == self.home:
                 self.destination = self.random.choice(self.activity_nodes)
@@ -71,11 +85,10 @@ class Civilian(Agent):
                     self.model.grid.move_agent(self, self.destination) # Do nothing. 
                 else:
                     if agent.typ == 'road': 
-                        road_neighbours.append(agent.pos) #Fix this!!!!!!!
+                        road_neighbours.append(agent.pos)
 
             # Check if agent has arrived. If agent has arrived at destination: set moving to "arrived". 
             if self.destination == self.pos and self.moving == "moving":  
-                #self.model.grid.move_agent(self, self.pos)
                 self.moving = "arrived"
 
             else:
@@ -103,18 +116,18 @@ class Civilian(Agent):
                         if ((ri > 80) and best_position):
                                 new_position = best_position
                         else:
-                                new_position = self.random.choice(right_dir) # move in right direction
+                                new_position = self.random.choice(right_dir) # Move in right direction
                     else:
-                        new_position = self.random.choice(right_dir) # move in the right direction
+                        new_position = self.random.choice(right_dir) # Move in the right direction
                 else:
                     if (len(wrong_dir) > 0):
-                        new_position = wrong_dir[0] # move in the wrong dir
+                        new_position = wrong_dir[0] # Move in the wrong dir
                     else:
-                        new_position = self.pos # stand still
+                        new_position = self.pos # Stand still
                 
                 self.prev_pos = self.pos
                 self.model.grid.move_agent(self, new_position)
-        
+
         elif self.moving == "arrived":
             self.prev_pos = self.pos
             self.moving = "waiting"
@@ -128,6 +141,27 @@ class Civilian(Agent):
             else: 
                 self.timer -= 1
 
+    def offend(self):
+        '''
+        Check if a suitable victim is in the same cell.
+        '''
+        if self.criminal_propensity > 0:
+            # Get information about agents on the same cell.
+            same_cell = self.model.grid.get_cell_list_contents(self.pos)
+            # Only select agents that are civilians
+            filtered_cell = []
+            for agent in same_cell:
+                if agent.typ == 'civilian':
+                    filtered_cell.append(agent)
+            the_offender = [self]
+
+            if len(filtered_cell) > 1:
+                victim = self.random.choice([i for i in filtered_cell if i not in the_offender])
+                print("I am the offender at:", self.pos, "and I will rob this victim:", victim)
+            else:
+                return
+            return
+    
     def update_neighbors(self):
         '''
         Look around and identify the neighbours.
@@ -139,9 +173,17 @@ class Civilian(Agent):
 
     def step(self):
         '''
-        A single tick in the simulation.
+        A single tick in the simulation. 
+        One tick equals to one minute and the agent can move between 6 and 8 steps per tick. 
         '''
-        self.move()
+        run_times = self.travel_speed
+        if run_times > 0:
+            while run_times > 0:
+                run_times -= 1
+                self.move()
+        # Calculate if a civilian will offend.
+        self.offend()
+
 
     def assign_ethnic(self):
         '''
@@ -165,6 +207,13 @@ class Civilian(Agent):
         
         return ethnicity
 
+    def time_to_offending_again():
+        '''
+        Returns the number of ticks before agent can offend again.
+        '''
+        time_offend = random.uniform(0, 43200) # 0 to 30 days.
+        return time_offend
+
 #----------------------
 class Cop(Agent):
     """
@@ -178,18 +227,20 @@ class Cop(Agent):
     patrol_node, 
     moving, 
     destination, 
-    timer
+    timer,
+    travel_speed
     ):
         super().__init__(unique_id, model)
         self.pos = position
         self.typ = 'cop'     
-        #Agent movement:
+        # Agent movement:
         self.home = position
         self.prev_pos = prev_position
         self.patrol_node = patrol_node
         self.moving = moving
         self.destination = destination
         self.timer = timer
+        self.travel_speed = travel_speed
 
     def move(self):
         '''
@@ -237,14 +288,14 @@ class Cop(Agent):
                         if ((ri > 80) and best_position):
                                 new_position = best_position
                         else:
-                                new_position = self.random.choice(right_dir) # move in right direction
+                                new_position = self.random.choice(right_dir) # Move in right direction
                     else:
-                        new_position = self.random.choice(right_dir) # move in the right direction
+                        new_position = self.random.choice(right_dir) # Move in the right direction
                 else:
                     if (len(wrong_dir) > 0):
-                        new_position = wrong_dir[0] # move in the wrong dir
+                        new_position = wrong_dir[0] # Move in the wrong dir
                     else:
-                        new_position = self.pos # stand still
+                        new_position = self.pos # Stand still
                 
                 self.prev_pos = self.pos
                 self.model.grid.move_agent(self, new_position)
@@ -270,13 +321,18 @@ class Cop(Agent):
         # Creates inclusion list to identify spawnable patches.
         include_x = list(range(0,400,3))
         include_y = list(range(0,400,6))  
-        #Pick random x and y coordinate that excludes roads.
+        # Pick random x and y coordinate that excludes roads.
         x = self.random.choice([x_l for x_l in range(0, self.model.grid.width) if x_l in include_x])
         y = self.random.choice([y_l for y_l in range(0, self.model.grid.height) if y_l in include_y])
         return (x,y)   
 
     def step(self):
         '''
-        A single tick in the simulation.
+        A single tick in the simulation. 
+        One tick equals to one minute and the agent can move between 6 and 8 steps per tick. 
         '''
-        self.move()
+        run_times = self.travel_speed
+        if run_times > 0:
+            while run_times > 0:
+                run_times -= 1
+                self.move()

@@ -32,10 +32,21 @@ def agent_portrayal(agent):
         portrayal["h"] = 1
         
     elif agent.typ == 'civilian':
-        portrayal["Shape"] = "circle"
-        portrayal["Color"] = "red"
-        portrayal["Layer"] = 1
-        portrayal["r"] = 1
+        if agent.chronic_offender == True:
+            portrayal["Shape"] = "circle"
+            portrayal["Color"] = "black"
+            portrayal["Layer"] = 1
+            portrayal["r"] = 1
+        elif agent.chronic_offender == False and agent.criminal_propensity > 0:
+            portrayal["Shape"] = "circle"
+            portrayal["Color"] = "orange"
+            portrayal["Layer"] = 1
+            portrayal["r"] = 1
+        else:
+            portrayal["Shape"] = "circle"
+            portrayal["Color"] = "red"
+            portrayal["Layer"] = 1
+            portrayal["r"] = 1
     else:
         portrayal["Shape"] = "circle"
         portrayal["Color"] = "blue"
