@@ -1,5 +1,5 @@
 from numpy import random
-import scipy.stats
+import scipy.stats as sct
 from mesa import Model
 from mesa.time import RandomActivation
 from mesa.space import MultiGrid
@@ -33,7 +33,8 @@ class Map(Model):
                 '''creates an agent with unique ID'''
                 i = 10000000 + (x_k * height) + y_k
                 position = (x_k, y_k)
-                s = StreetPatch(i, self, position)
+                risk = self.truncated_poisson(0.19, 6, 1) # Draw a random number from a poisson distribution.
+                s = StreetPatch(i, self, position, risk)
                 '''adds the agent to the scheduler'''
                 self.schedule.add(s)
                 '''adds the agent to a grid cell'''
@@ -44,9 +45,21 @@ class Map(Model):
         criminal_propensity_rate = 0.0925 # Rate of agents who have a criminal propensity rate greater than 0.
         chronic_offender_rate = 0.05 # Of those with criminal propensity, 5% have a chronic score (propensity = 10).
         
+        # Offender values
         criminal_total = round(self.num_agents * criminal_propensity_rate) # Number of agents with criminal propensity greater than 0.
         chronic_criminal = round(criminal_total * chronic_offender_rate) # Number of chronic offenders.
         criminal_non_chronic = round(self.num_agents * criminal_propensity_rate - chronic_criminal) # Number of non-chronic agents with greater criminal propensity than 0.
+
+        # Ethnicity values
+        white_perc = 0.449
+        other_perc = 0.233
+        asian_perc = 0.185
+        black_perc = 0.133
+
+        white_pop = self.num_agents * white_perc
+        other_pop = self.num_agents * other_perc
+        asian_pop = self.num_agents * asian_perc
+        black_pop = self.num_agents * black_perc
 
         for i_k in range(self.num_agents):
             position = self.random_activity_generator() 
@@ -55,18 +68,19 @@ class Map(Model):
             destination = []
             timer = 0
             travel_speed = random.uniform(6,9)
+            N_victimised = 0
 
             # Parameters for creating random distribution
-            lower = 0
+            lower = 1
             upper = 11
             mu = 5.5
             sigma = 1.2
             N = 1
-            attractiveness = scipy.stats.truncnorm.rvs(
+            attractiveness = sct.truncnorm.rvs(
                     (lower-mu)/sigma,(upper-mu)/sigma,loc=mu,scale=sigma,size=N)
-            perceived_guardianship = scipy.stats.truncnorm.rvs(
+            perceived_guardianship = sct.truncnorm.rvs(
                     (lower-mu)/sigma,(upper-mu)/sigma,loc=mu,scale=sigma,size=N)
-            perceieved_capability = random.uniform(-5,6) # random number between -5 and 5.
+            perceived_capability = random.uniform(-5,6) # random number between -5 and 5.
 
             # Assign criminal propensity rates to all agents. 
             if criminal_non_chronic > 0:
@@ -93,7 +107,21 @@ class Map(Model):
             N_nodes = 4
             for activity in range(0,N_nodes):
                 activity = self.random_activity_generator()
-                activity_nodes.append(activity)         
+                activity_nodes.append(activity)  
+
+            # Assign ethnicities to the population
+            if white_pop > 0:
+                white_pop -= 1
+                ethnicity = 'white'
+            elif other_pop > 0:
+                other_pop -= 1
+                ethnicity = 'other'
+            elif asian_pop > 0:
+                asian_pop -= 1
+                ethnicity = 'asian'
+            elif black_pop > 0:
+                black_pop -= 1
+                ethnicity = 'black'            
 
             a = Civilian(i_k, 
             self, 
@@ -110,7 +138,9 @@ class Map(Model):
             victimisation,
             attractiveness,
             perceived_guardianship,
-            perceieved_capability)
+            perceived_capability,
+            N_victimised,
+            ethnicity)
             self.schedule.add(a)
             self.grid.place_agent(a, position)
 
@@ -155,10 +185,11 @@ class Map(Model):
         )
 
     def random_activity_generator(self):
-        all_agents = self.schedule.agents
-        buildings = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
+        """
+        Creates a random node for the agent which will serve as the civilians' home.
+        """
         list_of_roads = []
-        for i in buildings:
+        for i in self.schedule.agents:
             if i.typ == 'building':
                 list_of_roads.append(i.pos)
         
@@ -167,6 +198,9 @@ class Map(Model):
         return (xy) 
     
     def random_patrol_node_generator(self):
+        """
+        Create a random node on the road map where the cop agent will move to.
+        """
         all_agents = self.schedule.agents
         roads = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
         list_of_roads = []
@@ -179,17 +213,37 @@ class Map(Model):
         return (xy)   
 
     def step(self):
-        '''
+        """
         Runs a single tick of the clock in the simulation
-        '''
+        """
         self.datacollector.collect(self)
         self.schedule.step()
+        self.finished()
+    
+    def finished(self):
+        N_ticks = 0
+        if N_ticks == 10:
+            self.running = False
+        else:
+            N_ticks += 1
+
+    def truncated_poisson(self, mu, max_value, size):
+        """
+        Returns a random number based on a poisson distribution.
+        """
+        temp_size = size
+        while True:
+            temp_size *= 2
+            temp = sct.poisson.rvs(mu, size=temp_size)
+            truncated = temp[temp <= max_value]
+            if len(truncated) >= size:
+                return truncated[:size]
 
     @staticmethod
     def count_ethnic_citizens(model, ethnicity):
-        '''
+        """
         Helper method to count agent ethnicity.
-        '''
+        """
         ethnic_count = 0
         for agent in model.schedule.agents:
             if agent.typ == "civilian":

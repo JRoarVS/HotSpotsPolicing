@@ -3,11 +3,11 @@ from mesa import Agent
 from numpy import random
 import operator
 
-#----------------------
+#----------------------------------------------------------------
 class StreetPatch(Agent):
     """An agent that will be a patch in the map"""
 
-    def __init__(self, unique_id, model, position):
+    def __init__(self, unique_id, model, position, risk):
         '''sets up the agent instance'''
         super().__init__(unique_id, model)
 
@@ -15,6 +15,7 @@ class StreetPatch(Agent):
         roads_xcor = list(range(0,400,3))
         roads_ycor = list(range(0,400,6))
         self.pos = position
+        self.risk = risk
 
         if(self.pos[0] in roads_xcor) or (self.pos[1] in roads_ycor):
             self.typ = 'road'
@@ -22,10 +23,9 @@ class StreetPatch(Agent):
             self.typ = 'building'
 
     def step(self):
-        #console.log('accessing elements')
         return       
 
-#----------------------
+#----------------------------------------------------------------
 class Civilian(Agent):
     """
     A member of the general population, which can be a victim of street robbery.
@@ -45,12 +45,14 @@ class Civilian(Agent):
     time_to_offending,
     victimisation,
     attractiveness,
-    perceieved_guardianship,
-    perceieved_capability):
+    perceived_guardianship,
+    perceived_capability,
+    N_victimised,
+    ethnicity):
         super().__init__(unique_id, model)
         self.pos = position
         self.typ = 'civilian'
-        self.ethnicity = self.assign_ethnic()       
+        self.ethnicity = ethnicity  
         # Agent movement:
         self.home = position
         self.prev_pos = prev_position
@@ -66,8 +68,9 @@ class Civilian(Agent):
         # Victimisation parameters:
         self.victimisation = victimisation
         self.attractiveness = attractiveness
-        self.perceived_guardianship = perceieved_guardianship
-        self.perceived_capability = perceieved_capability
+        self.perceived_guardianship = perceived_guardianship
+        self.perceived_capability = perceived_capability
+        self.N_victimised = N_victimised
 
     def move(self):
         '''
@@ -149,7 +152,7 @@ class Civilian(Agent):
         '''
         Check if a suitable victim is in the same cell.
         '''
-        if self.criminal_propensity > 0:
+        if self.criminal_propensity > 0 and self.moving == 'moving':
             # Get information about agents on the same cell.
             same_cell = self.model.grid.get_cell_list_contents(self.pos)
             # Only select agents that are civilians
@@ -161,9 +164,45 @@ class Civilian(Agent):
 
             if len(filtered_cell) > 1:
                 victim = self.random.choice([i for i in filtered_cell if i not in the_offender])
-            else:
+                if self.cop_nearby():
+                    print("There was cops nearby")
+                else:
+                    for f in same_cell:
+                        if f.typ == 'road':
+                            road_risk = f.risk
+
+                    Nc = (len(filtered_cell) - 2) + victim.perceived_guardianship
+                    guardianship = self.perceived_capability + Nc 
+                    rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
+                    print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
+                    if rational_choice_score >= 10: # CHANGE TO 20!!!!!
+                        self.robbery()
+                        victim.N_victimised += 1
+                        print("I just robbed a guy")
                 return
             return
+
+    def cop_nearby(self):
+        """
+        Looks around to see if cops are nearby.
+        """
+        vision = 7
+        cops_here = []
+        neighbours = self.model.grid.get_neighborhood(
+            self.pos, moore=False, radius=vision
+        )
+        whos_here = self.model.grid.get_cell_list_contents(neighbours)
+        for i in whos_here:
+            if i.typ == 'cop':
+                cops_here.append(i)
+
+        if len(cops_here) > 0:
+            return True # Cops nearby
+        else:
+            return False # No cops nearby
+    
+    def robbery(self):
+        return
     
     def update_neighbors(self):
         '''
@@ -187,29 +226,6 @@ class Civilian(Agent):
         # Calculate if a civilian will offend.
         self.offend()
 
-
-    def assign_ethnic(self):
-        '''
-        Assign ethnic background to the population. Data is based on London population 2020.
-        Change to set number.
-        '''
-        rand_nr = randint(0,101)
-        white_pop = 44.9
-        other_pop = 23.3
-        asian_pop = 18.5
-        black_pop = 13.3
-
-        if rand_nr <= white_pop:
-            ethnicity = "white"
-        elif white_pop < rand_nr <= (other_pop + white_pop):
-            ethnicity = "other"
-        elif (white_pop + other_pop) < rand_nr <= (other_pop + white_pop + asian_pop):
-            ethnicity = "asian"
-        else:
-            ethnicity = "black"
-        
-        return ethnicity
-
     def time_to_offending_again():
         '''
         Returns the number of ticks before agent can offend again.
@@ -217,7 +233,7 @@ class Civilian(Agent):
         time_offend = random.uniform(0, 43200) # 0 to 30 days.
         return time_offend
 
-#----------------------
+#----------------------------------------------------------------
 class Cop(Agent):
     """
     A police agent that will patrol the map and react to crime.
