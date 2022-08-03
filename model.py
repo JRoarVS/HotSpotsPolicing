@@ -35,7 +35,7 @@ class Map(Model):
                 position = (x_k, y_k)
                 s = StreetPatch(i, self, position)
                 '''adds the agent to the scheduler'''
-                #self.schedule.add(s)
+                self.schedule.add(s)
                 '''adds the agent to a grid cell'''
                 self.grid.place_agent(s, position)     
         
@@ -155,22 +155,28 @@ class Map(Model):
         )
 
     def random_activity_generator(self):
-        # Creates exclusion list to identify spawnable patches.
-        exclude_x = list(range(0,400,3))
-        exclude_y = list(range(0,400,6))  
-        # Pick random x and y coordinate that excludes roads.
-        x = self.random.choice([x_l for x_l in range(0, self.grid.width) if x_l not in exclude_x])
-        y = self.random.choice([y_l for y_l in range(0, self.grid.height) if y_l not in exclude_y])
-        return (x,y)
+        all_agents = self.schedule.agents
+        buildings = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
+        list_of_roads = []
+        for i in buildings:
+            if i.typ == 'building':
+                list_of_roads.append(i.pos)
+        
+        xy = self.random.choice(list_of_roads)
+
+        return (xy) 
     
     def random_patrol_node_generator(self):
-        # Creates exclusion list to identify spawnable patches.
-        include_x = list(range(0,400,3))
-        include_y = list(range(0,400,6))  
-        # Pick random x and y coordinate that includes roads.
-        x = self.random.choice([x_l for x_l in range(0, self.grid.width) if x_l not in include_x])
-        y = self.random.choice([y_l for y_l in range(0, self.grid.height) if y_l in include_y])
-        return (x,y)    
+        all_agents = self.schedule.agents
+        roads = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
+        list_of_roads = []
+        for i in roads:
+            if i.typ == 'road':
+                list_of_roads.append(i.pos)
+        
+        xy = self.random.choice(list_of_roads)
+
+        return (xy)   
 
     def step(self):
         '''

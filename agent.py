@@ -19,7 +19,11 @@ class StreetPatch(Agent):
         if(self.pos[0] in roads_xcor) or (self.pos[1] in roads_ycor):
             self.typ = 'road'
         else:
-            self.typ = 'building'       
+            self.typ = 'building'
+
+    def step(self):
+        #console.log('accessing elements')
+        return       
 
 #----------------------
 class Civilian(Agent):
@@ -132,7 +136,7 @@ class Civilian(Agent):
             self.prev_pos = self.pos
             self.moving = "waiting"
             if self.pos == self.home:
-                self.timer = 1 + int(random.uniform(0, 6)) # Home Node = 1 tick + U(0, 600)
+                self.timer = 1 + int(random.uniform(0, 600)) # Home Node = 1 tick + U(0, 600)
             else:
                 self.timer = 15 + int(random.uniform(0,4)) # Activity Node = 15 ticks + U(0, 480)
         else:   
@@ -157,7 +161,6 @@ class Civilian(Agent):
 
             if len(filtered_cell) > 1:
                 victim = self.random.choice([i for i in filtered_cell if i not in the_offender])
-                print("I am the offender at:", self.pos, "and I will rob this victim:", victim)
             else:
                 return
             return
@@ -318,13 +321,23 @@ class Cop(Agent):
         '''
         Gives a random patrol node to a cop agent.
         '''
-        # Creates inclusion list to identify spawnable patches.
+        #Creates inclusion list to identify spawnable patches.
         include_x = list(range(0,400,3))
         include_y = list(range(0,400,6))  
         # Pick random x and y coordinate that excludes roads.
         x = self.random.choice([x_l for x_l in range(0, self.model.grid.width) if x_l in include_x])
         y = self.random.choice([y_l for y_l in range(0, self.model.grid.height) if y_l in include_y])
-        return (x,y)   
+        
+        all_agents = self.model.schedule.agents
+        roads = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
+        list_of_roads = []
+        for i in roads:
+            if i.typ == 'road':
+                list_of_roads.append(i.pos)
+        
+        xy = self.random.choice(list_of_roads)
+
+        return (xy)
 
     def step(self):
         '''
