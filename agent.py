@@ -2,13 +2,17 @@ from random import randint
 from mesa import Agent
 from numpy import random
 import operator
+from operator import attrgetter
+
 
 #----------------------------------------------------------------
 class StreetPatch(Agent):
     """An agent that will be a patch in the map"""
 
-    def __init__(self, unique_id, model, position, risk):
-        '''sets up the agent instance'''
+    def __init__(self, unique_id, model, position, risk, crime_incidents):
+        """
+        Initialises the agent instance.
+        """
         super().__init__(unique_id, model)
 
         # Create a list of x and y cor to generate a grid layout.
@@ -16,6 +20,7 @@ class StreetPatch(Agent):
         roads_ycor = list(range(0,400,6))
         self.pos = position
         self.risk = risk
+        self.crime_incidents = crime_incidents
 
         if(self.pos[0] in roads_xcor) or (self.pos[1] in roads_ycor):
             self.typ = 'road'
@@ -28,7 +33,7 @@ class StreetPatch(Agent):
 #----------------------------------------------------------------
 class Civilian(Agent):
     """
-    A member of the general population, which can be a victim of street robbery.
+    A member of the general population, which can either be a victim of street robbery or be the one committing it.
     """
     def __init__(self, 
     unique_id, 
@@ -73,9 +78,9 @@ class Civilian(Agent):
         self.N_victimised = N_victimised
 
     def move(self):
-        '''
+        """
         Inspect neighbours and move to the next cell towards the destination patch. 
-        '''
+        """
         if self.moving == "moving":
             if self.pos == self.home:
                 self.destination = self.random.choice(self.activity_nodes)
@@ -139,7 +144,7 @@ class Civilian(Agent):
             self.prev_pos = self.pos
             self.moving = "waiting"
             if self.pos == self.home:
-                self.timer = 1 + int(random.uniform(0, 600)) # Home Node = 1 tick + U(0, 600)
+                self.timer = 1 + int(random.uniform(0, 6)) # Home Node = 1 tick + U(0, 600)
             else:
                 self.timer = 15 + int(random.uniform(0,4)) # Activity Node = 15 ticks + U(0, 480)
         else:   
@@ -149,10 +154,10 @@ class Civilian(Agent):
                 self.timer -= 1
 
     def offend(self):
-        '''
+        """
         Check if a suitable victim is in the same cell.
-        '''
-        if self.criminal_propensity > 0 and self.moving == 'moving':
+        """
+        if self.criminal_propensity > 0 and self.moving == 'moving' and self.time_to_offending >= 0:
             # Get information about agents on the same cell.
             same_cell = self.model.grid.get_cell_list_contents(self.pos)
             # Only select agents that are civilians
@@ -167,20 +172,28 @@ class Civilian(Agent):
                 if self.cop_nearby():
                     print("There was cops nearby")
                 else:
+                    road_risk = 0 
                     for f in same_cell:
                         if f.typ == 'road':
                             road_risk = f.risk
-
-                    Nc = (len(filtered_cell) - 2) + victim.perceived_guardianship
-                    guardianship = self.perceived_capability + Nc 
-                    rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
-                    print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
-                    if rational_choice_score >= 10: # CHANGE TO 20!!!!!
-                        self.robbery()
-                        victim.N_victimised += 1
-                        print("I just robbed a guy")
+                    if len(road_risk) > 0:
+                        Nc = (len(filtered_cell) - 2) + victim.perceived_guardianship
+                        guardianship = self.perceived_capability + Nc 
+                        rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
+                        print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
+                        if rational_choice_score >= 10: # CHANGE TO 20!!!!!
+                            self.robbery()
+                            victim.N_victimised += 1
+                            if self.criminal_propensity < 10:
+                                self.time_to_offending = self.time_to_offending_again()
+                                neighbours = self.model.grid.get_neighborhood(
+                                self.pos, moore=False, include_center = True, radius=2)                                 
+                                whos_here = self.model.grid.get_cell_list_contents(neighbours)
+                                for road in whos_here:
+                                    if road.typ == 'road':
+                                        road.crime_incidents += 1
+                    return
                 return
-            return
 
     def cop_nearby(self):
         """
@@ -205,19 +218,19 @@ class Civilian(Agent):
         return
     
     def update_neighbors(self):
-        '''
+        """
         Look around and identify the neighbours.
-        '''
+        """
         self.neighborhood = self.model.grid.get_neighborhood(
             self.pos, moore=False, radius=1
         )
         self.neighbors = self.model.grid.get_cell_list_contents(self.neighborhood)
 
     def step(self):
-        '''
+        """
         A single tick in the simulation. 
         One tick equals to one minute and the agent can move between 6 and 8 steps per tick. 
-        '''
+        """
         run_times = self.travel_speed
         if run_times > 0:
             while run_times > 0:
@@ -225,18 +238,20 @@ class Civilian(Agent):
                 self.move()
         # Calculate if a civilian will offend.
         self.offend()
+        if 0 < self.criminal_propensity < 10:
+            self.time_to_offending -= 1
 
-    def time_to_offending_again():
-        '''
+    def time_to_offending_again(self):
+        """
         Returns the number of ticks before agent can offend again.
-        '''
-        time_offend = random.uniform(0, 43200) # 0 to 30 days.
+        """
+        time_offend = round(random.uniform(0, 43200)) # 0 to 30 days.
         return time_offend
 
 #----------------------------------------------------------------
 class Cop(Agent):
     """
-    A police agent that will patrol the map and react to crime.
+    A police agent that will patrol the map and reacts to crime.
     """
     def __init__(self, 
     unique_id, 
@@ -247,7 +262,8 @@ class Cop(Agent):
     moving, 
     destination, 
     timer,
-    travel_speed
+    travel_speed,
+    hotspot_patrol
     ):
         super().__init__(unique_id, model)
         self.pos = position
@@ -260,6 +276,7 @@ class Cop(Agent):
         self.destination = destination
         self.timer = timer
         self.travel_speed = travel_speed
+        self.hotspot_patrol = hotspot_patrol
 
     def move(self):
         '''
@@ -267,7 +284,10 @@ class Cop(Agent):
         '''
         if self.moving == "moving":
             if self.pos == self.destination:
-                self.destination = self.random_patrol_node_generator()
+                if self.hotspot_patrol:
+                    self.destination = self.hotspot_node_generator()
+                else:
+                    self.destination = self.random_patrol_node_generator()
             # Create list of possible neighbouring cells to move to. 
             self.update_neighbors()
             road_neighbours = []
@@ -336,22 +356,27 @@ class Cop(Agent):
     def random_patrol_node_generator(self):
         '''
         Gives a random patrol node to a cop agent.
-        '''
-        #Creates inclusion list to identify spawnable patches.
-        include_x = list(range(0,400,3))
-        include_y = list(range(0,400,6))  
-        # Pick random x and y coordinate that excludes roads.
-        x = self.random.choice([x_l for x_l in range(0, self.model.grid.width) if x_l in include_x])
-        y = self.random.choice([y_l for y_l in range(0, self.model.grid.height) if y_l in include_y])
-        
-        all_agents = self.model.schedule.agents
-        roads = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
+        '''       
+        roads = [obj for obj in self.model.schedule.agents if isinstance(obj, StreetPatch)]
         list_of_roads = []
         for i in roads:
             if i.typ == 'road':
                 list_of_roads.append(i.pos)
         
         xy = self.random.choice(list_of_roads)
+
+        return (xy)
+
+    def hotspot_node_generator(self):
+        '''
+        Gives a hotspot node to a cop agent.
+        '''       
+        roads = [obj for obj in self.model.schedule.agents if isinstance(obj, StreetPatch)]
+        hotspot = max(roads, key=attrgetter('crime_incidents')).pos
+        if len(hotspot) > 0:
+            xy = hotspot
+        else:
+            xy = self.random_patrol_node_generator() # If there has been no crime, then give random node.
 
         return (xy)
 

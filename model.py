@@ -1,4 +1,4 @@
-from numpy import random
+import numpy as np
 import scipy.stats as sct
 from mesa import Model
 from mesa.time import RandomActivation
@@ -6,14 +6,10 @@ from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 from agent import Civilian, StreetPatch, Cop
 
-def count_civ(model):
-    agent_count = model.num_agents
-    return agent_count
-
-# def ethnic_count(model):
-#     black_count = [agent.ethnicity for agent in model.schedule.agents]
-#     return black_count
-
+def get_total_offences(model):
+    """Returns the number of agents that have been a victim to street robbery."""
+    agents = [a.N_victimised for a in model.schedule.agents if isinstance(a, Civilian)]
+    return int(np.sum(agents))
 
 class Map(Model):
     """
@@ -25,6 +21,7 @@ class Map(Model):
         self.grid = MultiGrid(width, height, torus=False)
         self.schedule = RandomActivation(self)
         self.running =  True
+        self.N_victims = 0
 
         # Initialise streetpatch agents.
         #----------------------------------------------------------------
@@ -34,7 +31,8 @@ class Map(Model):
                 i = 10000000 + (x_k * height) + y_k
                 position = (x_k, y_k)
                 risk = self.truncated_poisson(0.19, 6, 1) # Draw a random number from a poisson distribution.
-                s = StreetPatch(i, self, position, risk)
+                crime_incidents = 0
+                s = StreetPatch(i, self, position, risk, crime_incidents)
                 '''adds the agent to the scheduler'''
                 self.schedule.add(s)
                 '''adds the agent to a grid cell'''
@@ -67,7 +65,7 @@ class Map(Model):
             moving = "moving"
             destination = []
             timer = 0
-            travel_speed = random.uniform(6,9)
+            travel_speed = np.random.uniform(6,9)
             N_victimised = 0
 
             # Parameters for creating random distribution
@@ -80,14 +78,14 @@ class Map(Model):
                     (lower-mu)/sigma,(upper-mu)/sigma,loc=mu,scale=sigma,size=N)
             perceived_guardianship = sct.truncnorm.rvs(
                     (lower-mu)/sigma,(upper-mu)/sigma,loc=mu,scale=sigma,size=N)
-            perceived_capability = random.uniform(-5,6) # random number between -5 and 5.
+            perceived_capability = np.random.uniform(-5,6) # random number between -5 and 5.
 
             # Assign criminal propensity rates to all agents. 
             if criminal_non_chronic > 0:
                 criminal_propensity = self.random.choice(range(6,10,1)) # Propensity score between 6 and 9
                 criminal_non_chronic -= 1
                 chronic_offender = False
-                time_to_offending = random.uniform(0,43200)
+                time_to_offending = np.random.uniform(0,43200)
                 victimisation = 0 # Will not be used
             elif chronic_criminal > 0:
                 criminal_propensity = 10 # Propensity score of 10
@@ -98,7 +96,7 @@ class Map(Model):
             else:
                 criminal_propensity = 0 # Propensity score of 0
                 chronic_offender = False
-                time_to_offending = 99999999 # Not applicable to law-abiding citizens.
+                time_to_offending = 0 # Not applicable to law-abiding citizens.
                 victimisation = 20
 
 
@@ -152,7 +150,8 @@ class Map(Model):
             prev_position = position
             moving = "moving" 
             timer = 0
-            travel_speed = random.uniform(6,9)
+            travel_speed = np.random.uniform(6,9)
+            hotspot_patrol = True
 
             # Assign random 1 random activity node. This will change everytime the cop arrives at the node.
             patrol_node = self.random_patrol_node_generator()
@@ -165,7 +164,8 @@ class Map(Model):
             moving, 
             destination, 
             timer,
-            travel_speed)
+            travel_speed,
+            hotspot_patrol)
             self.schedule.add(b)
             self.grid.place_agent(b, position)
 
@@ -173,14 +173,10 @@ class Map(Model):
         #----------------------------------------------------------------
         self.datacollector = DataCollector(
             model_reporters={
-                "white": lambda m: self.count_ethnic_citizens(m, "white"),
-                "black": lambda m: self.count_ethnic_citizens(m, "black"),
-                "asian": lambda m: self.count_ethnic_citizens(m, "asian"),
-                "other": lambda m: self.count_ethnic_citizens(m, "other")
-            },
+                "Victimised": get_total_offences
+                },
             agent_reporters={
-                "x": lambda a: a.pos[0],
-                "y": lambda a: a.pos[1]
+                "Position": "pos"
             }
         )
 

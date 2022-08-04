@@ -19,32 +19,51 @@ def agent_portrayal(agent):
     
     if agent.typ == 'building':
         portrayal["Shape"] = "rect"
-        portrayal["Color"] = "beige"
+        portrayal["Color"] = "#D4AC0D"
         portrayal["Layer"] = 0
         portrayal["w"] = 1
         portrayal["h"] = 1
         
     elif agent.typ == 'road':
-        portrayal["Shape"] = "rect"
-        portrayal["Color"] = "gray" 
-        portrayal["Layer"] = 0
-        portrayal["w"] = 1
-        portrayal["h"] = 1
-        
+        if agent.crime_incidents == 0:
+            portrayal["Shape"] = "rect"
+            portrayal["Color"] = "#CACFD2" 
+            portrayal["Layer"] = 0
+            portrayal["w"] = 1
+            portrayal["h"] = 1
+        elif 3 > agent.crime_incidents > 0:
+            portrayal["Shape"] = "rect"
+            portrayal["Color"] = "#839192" 
+            portrayal["Layer"] = 0
+            portrayal["w"] = 1
+            portrayal["h"] = 1
+        elif 5 > agent.crime_incidents > 3:
+            portrayal["Shape"] = "rect"
+            portrayal["Color"] = "#7F8C8" 
+            portrayal["Layer"] = 0
+            portrayal["w"] = 1
+            portrayal["h"] = 1
+        else:            
+            portrayal["Shape"] = "rect"
+            portrayal["Color"] = "#34495E" 
+            portrayal["Layer"] = 0
+            portrayal["w"] = 1
+            portrayal["h"] = 1
+
     elif agent.typ == 'civilian':
         if agent.chronic_offender == True:
             portrayal["Shape"] = "circle"
-            portrayal["Color"] = "black"
+            portrayal["Color"] = "red"
             portrayal["Layer"] = 1
             portrayal["r"] = 1
         elif agent.chronic_offender == False and agent.criminal_propensity > 0:
             portrayal["Shape"] = "circle"
-            portrayal["Color"] = "orange"
+            portrayal["Color"] = "#B12702"
             portrayal["Layer"] = 1
             portrayal["r"] = 1
         else:
             portrayal["Shape"] = "circle"
-            portrayal["Color"] = "red"
+            portrayal["Color"] = "#C2654C"
             portrayal["Layer"] = 1
             portrayal["r"] = 1
     else:
@@ -63,7 +82,7 @@ grid = CanvasGrid(
     800)
 
 # Chart for datacollection
-chart = ChartModule([{"Label": "Count",
+chart = ChartModule([{"Label": "Victimised",
                       "Color": "Black"}],
                    data_collector_name='datacollector')
 
