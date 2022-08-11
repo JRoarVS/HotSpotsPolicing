@@ -15,27 +15,41 @@ class Map(Model):
     """
     A model that simulates hot spots policing in a city and contains all the agents.
     """
-    def __init__(self, N, NC, width, height):
+    def __init__(self, N, NC, width, height, N_strategic_cops, show_risky, see_crime):
         self.num_agents = N
         self.num_cops = NC
         self.grid = MultiGrid(width, height, torus=False)
         self.schedule = RandomActivation(self)
         self.running =  True
         self.N_victims = 0
+        self.N_strategic_cops = N_strategic_cops
+        self.show_risky = show_risky
+        self.see_crime = see_crime
 
         # Initialise streetpatch agents.
         #----------------------------------------------------------------
         for x_k in range(width):
             for y_k in range(height):
-                '''creates an agent with unique ID'''
+                """creates an agent with unique ID"""
                 i = 10000000 + (x_k * height) + y_k
                 position = (x_k, y_k)
                 risk = self.truncated_poisson(0.19, 6, 1) # Draw a random number from a poisson distribution.
                 crime_incidents = 0
-                s = StreetPatch(i, self, position, risk, crime_incidents)
-                '''adds the agent to the scheduler'''
+
+                # Create grid number for each section of the map
+                if y_k > 51 and x_k < 50:
+                    grid_nr = 1
+                elif y_k > 51 and x_k <= 50:
+                    grid_nr = 2
+                elif y_k <= 51 and x_k < 50:
+                    grid_nr = 3
+                elif y_k <= 51 and x_k >= 50:
+                    grid_nr = 4
+
+                s = StreetPatch(i, self, position, risk, crime_incidents, grid_nr)
+                """adds the agent to the scheduler"""
                 self.schedule.add(s)
-                '''adds the agent to a grid cell'''
+                """adds the agent to a grid cell"""
                 self.grid.place_agent(s, position)     
         
         # Initialise civilian agents.
@@ -58,6 +72,9 @@ class Map(Model):
         other_pop = self.num_agents * other_perc
         asian_pop = self.num_agents * asian_perc
         black_pop = self.num_agents * black_perc
+
+        # Cop values:
+        nr_of_officers = round(self.num_cops * (self.N_strategic_cops / 100))
 
         for i_k in range(self.num_agents):
             position = self.random_activity_generator() 
@@ -110,16 +127,16 @@ class Map(Model):
             # Assign ethnicities to the population
             if white_pop > 0:
                 white_pop -= 1
-                ethnicity = 'white'
+                ethnicity = "white"
             elif other_pop > 0:
                 other_pop -= 1
-                ethnicity = 'other'
+                ethnicity = "other"
             elif asian_pop > 0:
                 asian_pop -= 1
-                ethnicity = 'asian'
+                ethnicity = "asian"
             elif black_pop > 0:
                 black_pop -= 1
-                ethnicity = 'black'            
+                ethnicity = "black"            
 
             a = Civilian(i_k, 
             self, 
@@ -151,7 +168,12 @@ class Map(Model):
             moving = "moving" 
             timer = 0
             travel_speed = np.random.uniform(6,9)
-            hotspot_patrol = True
+
+            if nr_of_officers > 0:
+                nr_of_officers -= 1
+                hotspot_patrol = True
+            else:
+                hotspot_patrol = False
 
             # Assign random 1 random activity node. This will change everytime the cop arrives at the node.
             patrol_node = self.random_patrol_node_generator()
@@ -186,7 +208,7 @@ class Map(Model):
         """
         list_of_roads = []
         for i in self.schedule.agents:
-            if i.typ == 'building':
+            if i.typ == "building":
                 list_of_roads.append(i.pos)
         
         xy = self.random.choice(list_of_roads)
@@ -201,7 +223,7 @@ class Map(Model):
         roads = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
         list_of_roads = []
         for i in roads:
-            if i.typ == 'road':
+            if i.typ == "road":
                 list_of_roads.append(i.pos)
         
         xy = self.random.choice(list_of_roads)
@@ -234,6 +256,7 @@ class Map(Model):
             truncated = temp[temp <= max_value]
             if len(truncated) >= size:
                 return truncated[:size]
+
 
     @staticmethod
     def count_ethnic_citizens(model, ethnicity):
