@@ -34,20 +34,19 @@ def agent_portrayal(agent):
             portrayal["h"] = 1
         
     elif agent.typ == "road":
-        if agent.model.see_crime == True:
-            if agent.crime_incidents == 0:
+            if agent.crime_incidents > 5 and agent.model.see_crime == True:
                 portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#CACFD2" 
+                portrayal["Color"] = "#34495E"
                 portrayal["Layer"] = 1
                 portrayal["w"] = 1
                 portrayal["h"] = 1
-            elif 3 > agent.crime_incidents > 0:
+            elif 3 > agent.crime_incidents > 0 and agent.model.see_crime == True:
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#839192" 
                 portrayal["Layer"] = 1
                 portrayal["w"] = 1
                 portrayal["h"] = 1
-            elif 5 > agent.crime_incidents > 3:
+            elif 5 > agent.crime_incidents > 3 and agent.model.see_crime == True:
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#7F8C8" 
                 portrayal["Layer"] = 1
@@ -55,7 +54,7 @@ def agent_portrayal(agent):
                 portrayal["h"] = 1
             else:            
                 portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#34495E" 
+                portrayal["Color"] = "#CACFD2" 
                 portrayal["Layer"] = 1
                 portrayal["w"] = 1
                 portrayal["h"] = 1        
