@@ -21,7 +21,7 @@ class StreetPatch(Agent):
         self.pos = position
         self.risk = risk
         self.crime_incidents = crime_incidents
-        grid_nr = grid_nr
+        self.grid_nr = grid_nr
 
         if(self.pos[0] in roads_xcor) or (self.pos[1] in roads_ycor):
             self.typ = "road"
@@ -84,7 +84,7 @@ class Civilian(Agent):
         """
         if self.moving == "moving":
             if self.pos == self.home:
-                self.destination = self.random.choice(self.activity_nodes)
+                self.destination = self.random.choice(self.activity_nodes) # Selects a new destination
             elif self.pos == self.destination:
                 if randint(0,100) <= 79: # 80% chance of returning home
                     self.destination = self.home
@@ -110,6 +110,7 @@ class Civilian(Agent):
                 right_dir = []
                 wrong_dir = []
 
+                # Create a list of right directions and wrong directions.
                 distance = tuple(map(operator.sub, self.destination, self.pos))
                 for coordinate in road_neighbours:
                     if coordinate != self.prev_pos:
@@ -118,27 +119,13 @@ class Civilian(Agent):
                             right_dir.append(coordinate)
                         else:
                             wrong_dir.append(coordinate)
-                random_integer = randint(0, 100)
-                if ((random_integer <= 98) and (len(right_dir) > 0)):
-                    if (len(right_dir) > 1):
-                        for c in right_dir:
-                            if ((abs(distance[0]) >= abs(distance[1])) and (c[0] != self.pos[0])):
-                                best_position = c
-                            elif ((abs(distance[0]) <= abs(distance[1])) and (c[1] != self.pos[1])):
-                                best_position = c
-                        ri = randint(0,100)
-                        if ((ri > 80) and best_position):
-                                new_position = best_position
-                        else:
-                                new_position = self.random.choice(right_dir) # Move in right direction
-                    else:
-                        new_position = self.random.choice(right_dir) # Move in the right direction
-                else:
-                    if (len(wrong_dir) > 0):
-                        new_position = wrong_dir[0] # Move in the wrong dir
-                    else:
-                        new_position = self.pos # Stand still
                 
+                # Move to the right direction unless there is no right direction.
+                if len(right_dir) > 0:
+                    new_position = right_dir[0]
+                else:
+                    new_position = self.random.choice(wrong_dir)
+
                 self.prev_pos = self.pos
                 self.model.grid.move_agent(self, new_position)
 
@@ -265,7 +252,8 @@ class Cop(Agent):
     destination, 
     timer,
     travel_speed,
-    hotspot_patrol
+    hotspot_patrol,
+    patrol_area
     ):
         super().__init__(unique_id, model)
         self.pos = position
@@ -279,6 +267,7 @@ class Cop(Agent):
         self.timer = timer
         self.travel_speed = travel_speed
         self.hotspot_patrol = hotspot_patrol
+        self.patrol_area = patrol_area
 
     def move(self):
         """
@@ -317,27 +306,13 @@ class Cop(Agent):
                             right_dir.append(coordinate)
                         else:
                             wrong_dir.append(coordinate)
-                random_integer = randint(0, 100)
-                if ((random_integer <= 98) and (len(right_dir) > 0)):
-                    if (len(right_dir) > 1):
-                        for c in right_dir:
-                            if ((abs(distance[0]) >= abs(distance[1])) and (c[0] != self.pos[0])):
-                                best_position = c
-                            elif ((abs(distance[0]) <= abs(distance[1])) and (c[1] != self.pos[1])):
-                                best_position = c
-                        ri = randint(0,100)
-                        if ((ri > 80) and best_position):
-                                new_position = best_position
-                        else:
-                                new_position = self.random.choice(right_dir) # Move in right direction
-                    else:
-                        new_position = self.random.choice(right_dir) # Move in the right direction
-                else:
-                    if (len(wrong_dir) > 0):
-                        new_position = wrong_dir[0] # Move in the wrong dir
-                    else:
-                        new_position = self.pos # Stand still
                 
+                # Move to the right direction unless there is no right direction.
+                if len(right_dir) > 0:
+                    new_position = right_dir[0]
+                else:
+                    new_position = self.random.choice(wrong_dir)
+
                 self.prev_pos = self.pos
                 self.model.grid.move_agent(self, new_position)
         
@@ -362,8 +337,8 @@ class Cop(Agent):
         roads = [obj for obj in self.model.schedule.agents if isinstance(obj, StreetPatch)]
         list_of_roads = []
         for i in roads:
-            if i.typ == "road":
-                list_of_roads.append(i.pos)
+            if i.typ == "road" and i.grid_nr == self.patrol_area:
+                list_of_roads.append(i.pos) 
         
         xy = self.random.choice(list_of_roads)
 

@@ -15,16 +15,19 @@ class Map(Model):
     """
     A model that simulates hot spots policing in a city and contains all the agents.
     """
-    def __init__(self, N, NC, width, height, N_strategic_cops, show_risky, see_crime):
+    def __init__(self, N, NC, width, height, N_strategic_cops, show_risky, see_crime, show_zones):
         self.num_agents = N
         self.num_cops = NC
         self.grid = MultiGrid(width, height, torus=False)
         self.schedule = RandomActivation(self)
         self.running =  True
         self.N_victims = 0
-        self.N_strategic_cops = N_strategic_cops
-        self.show_risky = show_risky
-        self.see_crime = see_crime
+
+        # Visualisation:
+        self.N_strategic_cops = N_strategic_cops # Slider: Adjust the percentage of strategic cops.
+        self.show_risky = show_risky # Checkbox: Show which grid cells are risky locations.
+        self.see_crime = see_crime # Checkbox: Show how crime hot spots are generated.
+        self.show_zones = show_zones # Checkbox: Show the four zones of the map.
 
         # Initialise streetpatch agents.
         #----------------------------------------------------------------
@@ -39,7 +42,7 @@ class Map(Model):
                 # Create grid number for each section of the map
                 if y_k > 51 and x_k < 50:
                     grid_nr = 1
-                elif y_k > 51 and x_k <= 50:
+                elif y_k > 51 and x_k >= 50:
                     grid_nr = 2
                 elif y_k <= 51 and x_k < 50:
                     grid_nr = 3
@@ -74,7 +77,10 @@ class Map(Model):
         black_pop = self.num_agents * black_perc
 
         # Cop values:
-        nr_of_officers = round(self.num_cops * (self.N_strategic_cops / 100))
+        nr_of_officers = round(self.num_cops * (self.N_strategic_cops / 100)) # Only strategic
+        patrol_1 = (self.num_cops/4) - nr_of_officers
+        patrol_2 = (self.num_cops/4) - nr_of_officers
+        patrol_3 = (self.num_cops/4) - nr_of_officers
 
         for i_k in range(self.num_agents):
             position = self.random_activity_generator() 
@@ -163,7 +169,6 @@ class Map(Model):
         #----------------------------------------------------------------
         for j_k in range(self.num_cops):
             cop_id = j_k + 10000000000
-            position = self.random_patrol_node_generator() 
             prev_position = position
             moving = "moving" 
             timer = 0
@@ -174,9 +179,24 @@ class Map(Model):
                 hotspot_patrol = True
             else:
                 hotspot_patrol = False
+            
+            # Create patrol areas for the cop agents
+            if patrol_1 > 0:
+                patrol_area = 1
+                patrol_1 -= 1
+            elif patrol_2 > 0:
+                patrol_area = 2
+                patrol_2 -= 1
+            elif patrol_3 > 0:
+                patrol_3 -= 1
+                patrol_area = 3
+            else:
+                patrol_area = 4
+            
+            position = self.random_patrol_node_generator(patrol_area) 
 
             # Assign random 1 random activity node. This will change everytime the cop arrives at the node.
-            patrol_node = self.random_patrol_node_generator()
+            patrol_node = self.random_patrol_node_generator(patrol_area)
             destination = patrol_node
             b = Cop(cop_id, 
             self, 
@@ -187,7 +207,8 @@ class Map(Model):
             destination, 
             timer,
             travel_speed,
-            hotspot_patrol)
+            hotspot_patrol,
+            patrol_area)
             self.schedule.add(b)
             self.grid.place_agent(b, position)
 
@@ -215,20 +236,21 @@ class Map(Model):
 
         return (xy) 
     
-    def random_patrol_node_generator(self):
+    def random_patrol_node_generator(self, patrol_area):
         """
         Create a random node on the road map where the cop agent will move to.
         """
+        grid_zone = patrol_area
         all_agents = self.schedule.agents
         roads = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
         list_of_roads = []
         for i in roads:
-            if i.typ == "road":
+            if i.typ == "road" and i.grid_nr == grid_zone:
                 list_of_roads.append(i.pos)
         
         xy = self.random.choice(list_of_roads)
 
-        return (xy)   
+        return (xy)
 
     def step(self):
         """

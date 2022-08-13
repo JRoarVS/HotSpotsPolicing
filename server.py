@@ -34,19 +34,20 @@ def agent_portrayal(agent):
             portrayal["h"] = 1
         
     elif agent.typ == "road":
-            if agent.crime_incidents > 5 and agent.model.see_crime == True:
+        if agent.model.see_crime == True: # Only works if checkbox for showing crims is True.
+            if agent.crime_incidents > 5:
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#34495E"
                 portrayal["Layer"] = 1
                 portrayal["w"] = 1
                 portrayal["h"] = 1
-            elif 3 > agent.crime_incidents > 0 and agent.model.see_crime == True:
+            elif 3 > agent.crime_incidents > 0:
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#839192" 
                 portrayal["Layer"] = 1
                 portrayal["w"] = 1
                 portrayal["h"] = 1
-            elif 5 > agent.crime_incidents > 3 and agent.model.see_crime == True:
+            elif 5 > agent.crime_incidents > 3:
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#7F8C8" 
                 portrayal["Layer"] = 1
@@ -57,7 +58,38 @@ def agent_portrayal(agent):
                 portrayal["Color"] = "#CACFD2" 
                 portrayal["Layer"] = 1
                 portrayal["w"] = 1
-                portrayal["h"] = 1        
+                portrayal["h"] = 1    
+        elif agent.model.show_zones == True: # Only works if checkbox for showing zones is True.
+            if agent.grid_nr == 1:            
+                portrayal["Shape"] = "rect"
+                portrayal["Color"] = "black" 
+                portrayal["Layer"] = 1
+                portrayal["w"] = 1
+                portrayal["h"] = 1
+            elif agent.grid_nr == 2:
+                portrayal["Shape"] = "rect"
+                portrayal["Color"] = "#1B4F72" 
+                portrayal["Layer"] = 1
+                portrayal["w"] = 1
+                portrayal["h"] = 1
+            elif agent.grid_nr == 3:
+                portrayal["Shape"] = "rect"
+                portrayal["Color"] = "#6C3483" 
+                portrayal["Layer"] = 1
+                portrayal["w"] = 1
+                portrayal["h"] = 1                     
+            elif agent.grid_nr == 4:
+                portrayal["Shape"] = "rect"
+                portrayal["Color"] = "#7D6608" 
+                portrayal["Layer"] = 1
+                portrayal["w"] = 1
+                portrayal["h"] = 1
+        else:
+            portrayal["Shape"] = "rect"
+            portrayal["Color"] = "#CACFD2" 
+            portrayal["Layer"] = 1
+            portrayal["w"] = 1
+            portrayal["h"] = 1                    
 
     elif agent.typ == "civilian":
         if agent.chronic_offender == True:
@@ -113,6 +145,10 @@ model_params = {
      # Visualise crime events
     "see_crime": UserSettableParameter(param_type="checkbox",
      name="Show Crime Hot Spots",
+     value=False),
+    # Visualise zones
+    "show_zones": UserSettableParameter(param_type="checkbox",
+     name="Show the Four Zones",
      value=False), 
     "N": n_agents, 
     "NC": n_cops, 
