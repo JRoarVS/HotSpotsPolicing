@@ -76,15 +76,27 @@ class Map(Model):
         asian_pop = self.num_agents * asian_perc
         black_pop = self.num_agents * black_perc
 
-        # Cop values:
-        nr_of_officers = round(self.num_cops * (self.N_strategic_cops / 100)) # Only strategic
-        patrol_1 = (self.num_cops/4) - nr_of_officers
-        patrol_2 = (self.num_cops/4) - nr_of_officers
-        patrol_3 = (self.num_cops/4) - nr_of_officers
+        # Zone values
+        zone_1 = self.num_agents/4
+        zone_2 = self.num_agents/4
+        zone_3 = self.num_agents/4
 
         for i_k in range(self.num_agents):
-            position = self.random_activity_generator() 
-            prev_position = self.random_activity_generator()
+            # Create zones
+            if zone_1 > 0:
+                zone = 1
+                zone_1 -= 1
+            elif zone_2 > 0:
+                zone = 2
+                zone_2 -= 1
+            elif zone_3 > 0:
+                zone = 3
+                zone_3 -= 1
+            else:
+                zone = 4  
+
+            position = self.random_activity_generator(zone) 
+            prev_position = self.random_activity_generator(zone)
             moving = "moving"
             destination = []
             timer = 0
@@ -122,13 +134,18 @@ class Map(Model):
                 time_to_offending = 0 # Not applicable to law-abiding citizens.
                 victimisation = 20
 
-
             # Assign random activity nodes for the agents. This will be their routine activities.
             activity_nodes = []
-            N_nodes = 4
+            N_nodes = 4 # Normal nodes
+            R_nodes = 2 # Risky nodes
             for activity in range(0,N_nodes):
-                activity = self.random_activity_generator()
-                activity_nodes.append(activity)  
+                if R_nodes > 0:
+                    activity = self.risky_activity_generator(zone)
+                    activity_nodes.append(activity)
+                    R_nodes -= 1
+                else:
+                    activity = self.random_activity_generator(zone)
+                    activity_nodes.append(activity)  
 
             # Assign ethnicities to the population
             if white_pop > 0:
@@ -142,7 +159,7 @@ class Map(Model):
                 ethnicity = "asian"
             elif black_pop > 0:
                 black_pop -= 1
-                ethnicity = "black"            
+                ethnicity = "black"          
 
             a = Civilian(i_k, 
             self, 
@@ -161,12 +178,19 @@ class Map(Model):
             perceived_guardianship,
             perceived_capability,
             N_victimised,
-            ethnicity)
+            ethnicity,
+            zone)
             self.schedule.add(a)
             self.grid.place_agent(a, position)
 
         # Initialise cop agents.
         #----------------------------------------------------------------
+        # Cop values:
+        nr_of_officers = round(self.num_cops * (self.N_strategic_cops / 100)) # Only strategic
+        patrol_1 = (self.num_cops/4) - nr_of_officers
+        patrol_2 = (self.num_cops/4) - nr_of_officers
+        patrol_3 = (self.num_cops/4) - nr_of_officers
+
         for j_k in range(self.num_cops):
             cop_id = j_k + 10000000000
             prev_position = position
@@ -177,21 +201,21 @@ class Map(Model):
             if nr_of_officers > 0:
                 nr_of_officers -= 1
                 hotspot_patrol = True
+                patrol_area = 1 # Starts at grid 1, but will move across the whole map.
             else:
-                hotspot_patrol = False
-            
-            # Create patrol areas for the cop agents
-            if patrol_1 > 0:
-                patrol_area = 1
-                patrol_1 -= 1
-            elif patrol_2 > 0:
-                patrol_area = 2
-                patrol_2 -= 1
-            elif patrol_3 > 0:
-                patrol_3 -= 1
-                patrol_area = 3
-            else:
-                patrol_area = 4
+                hotspot_patrol = False    
+                # Create patrol areas for the cop agents
+                if patrol_1 > 0:
+                    patrol_area = 1
+                    patrol_1 -= 1
+                elif patrol_2 > 0:
+                    patrol_area = 2
+                    patrol_2 -= 1
+                elif patrol_3 > 0:
+                    patrol_3 -= 1
+                    patrol_area = 3
+                else:
+                    patrol_area = 4
             
             position = self.random_patrol_node_generator(patrol_area) 
 
@@ -223,18 +247,30 @@ class Map(Model):
             }
         )
 
-    def random_activity_generator(self):
+    def random_activity_generator(self, zone):
         """
-        Creates a random node for the agent which will serve as the civilians' home.
+        Creates a random node for the agent which will serve as the civilians' home and activity nodes.
         """
         list_of_roads = []
         for i in self.schedule.agents:
-            if i.typ == "building":
+            if i.typ == "building" and i.grid_nr == zone:
                 list_of_roads.append(i.pos)
         
         xy = self.random.choice(list_of_roads)
 
         return (xy) 
+    
+    def risky_activity_generator(self, zone):
+        """
+        Selects random nodes that are risky (risk > 0)
+        """
+        list_of_risky_roads = []
+        for i in self.schedule.agents:
+            if i.typ == "building" and i.grid_nr == zone and i.risk > 0:
+                list_of_risky_roads.append(i.pos)
+
+        xy = self.random.choice(list_of_risky_roads)
+        return(xy)
     
     def random_patrol_node_generator(self, patrol_area):
         """

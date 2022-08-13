@@ -10,7 +10,7 @@ from mesa.visualization.UserParam import UserSettableParameter
 #set parameters
 set_height = 103
 set_width = 100
-n_cops = 10
+n_cops = 13
 n_agents = 300
 
 # Design the agent portrayal
@@ -107,11 +107,17 @@ def agent_portrayal(agent):
             portrayal["Color"] = "#C2654C"
             portrayal["Layer"] = 2
             portrayal["r"] = 1
-    else:
-        portrayal["Shape"] = "circle"
-        portrayal["Color"] = "blue"
-        portrayal["Layer"] = 2
-        portrayal["r"] = 1
+    elif agent.typ == "cop":
+        if agent.hotspot_patrol:
+            portrayal["Shape"] = "circle"
+            portrayal["Color"] = "#5B2C6F"
+            portrayal["Layer"] = 2
+            portrayal["r"] = 1
+        else:
+            portrayal["Shape"] = "circle"
+            portrayal["Color"] = "blue"
+            portrayal["Layer"] = 2
+            portrayal["r"] = 1
     return portrayal
 
 # Create the grid with the agent design

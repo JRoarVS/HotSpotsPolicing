@@ -54,7 +54,8 @@ class Civilian(Agent):
     perceived_guardianship,
     perceived_capability,
     N_victimised,
-    ethnicity):
+    ethnicity,
+    zone):
         super().__init__(unique_id, model)
         self.pos = position
         self.typ = "civilian"
@@ -77,6 +78,7 @@ class Civilian(Agent):
         self.perceived_guardianship = perceived_guardianship
         self.perceived_capability = perceived_capability
         self.N_victimised = N_victimised
+        self.zone = zone
 
     def move(self):
         """
@@ -133,9 +135,9 @@ class Civilian(Agent):
             self.prev_pos = self.pos
             self.moving = "waiting"
             if self.pos == self.home:
-                self.timer = 1 + int(random.uniform(0, 6)) # Home Node = 1 tick + U(0, 600)
+                self.timer = 1 + int(random.uniform(0, 600)) # Home Node = 1 tick + U(0, 600)
             else:
-                self.timer = 15 + int(random.uniform(0,4)) # Activity Node = 15 ticks + U(0, 480)
+                self.timer = 15 + int(random.uniform(0,480)) # Activity Node = 15 ticks + U(0, 480)
         else:   
             if self.timer == 0:
                 self.moving = "moving"
@@ -348,10 +350,17 @@ class Cop(Agent):
         """
         Gives a hotspot node to a cop agent.
         """       
+        hotspots = []
         roads = [obj for obj in self.model.schedule.agents if isinstance(obj, StreetPatch)]
-        hotspot = max(roads, key=attrgetter("crime_incidents")).pos
-        if len(hotspot) > 0:
-            xy = hotspot
+
+        # Create a list of the top five crime hot spots.
+        for i in range(0,5):
+            hotspot = max(roads, key=attrgetter("crime_incidents"))#.pos
+            hotspots.append(hotspot.pos)
+            roads.remove(hotspot)
+
+        if len(hotspots) > 0:
+            xy = self.random.choice(hotspots) # Pick a random hot spot of the five.
         else:
             xy = self.random_patrol_node_generator() # If there has been no crime, then give random node.
 
