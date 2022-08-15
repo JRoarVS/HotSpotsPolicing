@@ -55,7 +55,8 @@ class Civilian(Agent):
     perceived_capability,
     N_victimised,
     ethnicity,
-    zone):
+    zone,
+    stop_searched):
         super().__init__(unique_id, model)
         self.pos = position
         self.typ = "civilian"
@@ -79,6 +80,7 @@ class Civilian(Agent):
         self.perceived_capability = perceived_capability
         self.N_victimised = N_victimised
         self.zone = zone
+        self.stop_searched = stop_searched
 
     def move(self):
         """
@@ -173,7 +175,7 @@ class Civilian(Agent):
                         rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
                         print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
                         if rational_choice_score >= 10: # CHANGE TO 20!!!!!
-                            self.robbery()
+                            self.robbery() # Hmm... Fix?????????????
                             victim.N_victimised += 1
                             if self.criminal_propensity < 20:
                                 self.time_to_offending = self.time_to_offending_again()
@@ -368,45 +370,21 @@ class Cop(Agent):
 
     def stopsearch(self):
         """
-        Check if a suitable suspect is in the same cell.
+        Stop and search a potential suspect in the same cell as an officer.
         """
-        if self.criminal_propensity > 0 and self.moving == "moving" and self.time_to_offending >= 0:
-            # Get information about agents on the same cell.
-            same_cell = self.model.grid.get_cell_list_contents(self.pos)
-            # Only select agents that are civilians
-            filtered_cell = []
-            for agent in same_cell:
-                if agent.typ == "civilian":
-                    filtered_cell.append(agent)
-            the_offender = [self]
+        # Get information about agents on the same cell.
+        same_cell = self.model.grid.get_cell_list_contents(self.pos)
+        # Only select agents that are civilians
+        filtered_cell = []
+        for agent in same_cell:
+            if agent.typ == "civilian":
+                filtered_cell.append(agent)
+        the_police = [self]
+        if len(filtered_cell) > 1:
+            suspect = self.random.choice([i for i in filtered_cell if i not in the_police])
+            suspect.stop_searched += 1
+            print("I've been stopped and searched", suspect.stop_searched, "time(s).")
 
-            if len(filtered_cell) > 1:
-                victim = self.random.choice([i for i in filtered_cell if i not in the_offender])
-                if self.cop_nearby():
-                    print("There was cops nearby")
-                else:
-                    road_risk = 10 # Road risk can't be 10 
-                    for f in same_cell:
-                        if f.typ == "road":
-                            road_risk = f.risk
-                    if road_risk < 10:
-                        Nc = (len(filtered_cell) - 2) + victim.perceived_guardianship
-                        guardianship = self.perceived_capability + Nc 
-                        rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
-                        print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
-                        if rational_choice_score >= 10: # CHANGE TO 20!!!!!
-                            self.robbery()
-                            victim.N_victimised += 1
-                            if self.criminal_propensity < 10:
-                                self.time_to_offending = self.time_to_offending_again()
-                                neighbours = self.model.grid.get_neighborhood(
-                                self.pos, moore=False, include_center = True, radius=2)                                 
-                                whos_here = self.model.grid.get_cell_list_contents(neighbours)
-                                for road in whos_here:
-                                    if road.typ == "road":
-                                        road.crime_incidents += 1
-                    return
-                return
 
     def step(self):
         """
@@ -418,3 +396,5 @@ class Cop(Agent):
             while run_times > 0:
                 run_times -= 1
                 self.move()
+        
+        self.stopsearch()

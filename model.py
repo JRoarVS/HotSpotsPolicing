@@ -11,6 +11,23 @@ def get_total_offences(model):
     agents = [a.N_victimised for a in model.schedule.agents if isinstance(a, Civilian)]
     return int(np.sum(agents))
 
+def get_N_stopsearch(model):
+    """Returns the number of agents that have been stopped and search"""
+    agents = [a.stop_searched for a in model.schedule.agents if isinstance(a, Civilian)]
+    return int(np.sum(agents))
+
+# GLOBAL VARIABLES:
+#--------------------------------------------------------------------------
+# Offending variables:
+CRIMINAL_PROPENSITY_RATE = 0.0925 # Rate of agents who have a criminal propensity rate greater than 0.
+CHRONIC_OFFENDER_RATE = 0.05 # Of those with criminal propensity, 5% have a chronic score (propensity = 10).
+
+# Ethnicity values
+WHITE_PERC = 0.449
+OTHER_PERC = 0.233
+ASIAN_PERC = 0.185
+BLACK_PERC = 0.133
+
 class Map(Model):
     """
     A model that simulates hot spots policing in a city and contains all the agents.
@@ -22,7 +39,6 @@ class Map(Model):
         self.schedule = RandomActivation(self)
         self.running =  True
         self.N_victims = 0
-
         # Visualisation:
         self.N_strategic_cops = N_strategic_cops # Slider: Adjust the percentage of strategic cops.
         self.show_risky = show_risky # Checkbox: Show which grid cells are risky locations.
@@ -57,62 +73,33 @@ class Map(Model):
         
         # Initialise civilian agents.
         #----------------------------------------------------------------
-        criminal_propensity_rate = 0.0925 # Rate of agents who have a criminal propensity rate greater than 0.
-        chronic_offender_rate = 0.05 # Of those with criminal propensity, 5% have a chronic score (propensity = 10).
+        criminal_propensity_rate = CRIMINAL_PROPENSITY_RATE
+        chronic_offender_rate = CHRONIC_OFFENDER_RATE
         
         # Offender values
         criminal_total = round(self.num_agents * criminal_propensity_rate) # Number of agents with criminal propensity greater than 0.
         chronic_criminal = round(criminal_total * chronic_offender_rate) # Number of chronic offenders.
         criminal_non_chronic = round(self.num_agents * criminal_propensity_rate - chronic_criminal) # Number of non-chronic agents with greater criminal propensity than 0.
 
-        # Ethnicity values
-        white_perc = 0.449
-        other_perc = 0.233
-        asian_perc = 0.185
-        black_perc = 0.133
+        white_pop = self.num_agents * WHITE_PERC
+        other_pop = self.num_agents * OTHER_PERC
+        asian_pop = self.num_agents * ASIAN_PERC
+        black_pop = self.num_agents * BLACK_PERC
 
-        white_pop = self.num_agents * white_perc
-        other_pop = self.num_agents * other_perc
-        asian_pop = self.num_agents * asian_perc
-        black_pop = self.num_agents * black_perc
-
-        # Zone values
-        zone_1 = self.num_agents/4
-        zone_2 = self.num_agents/4
-        zone_3 = self.num_agents/4
+        # Set up zone values:
+        zone_1 = (self.num_agents/4)-(criminal_total/4)
+        zone_2 = (self.num_agents/4)-(criminal_total/4)
+        zone_3 = (self.num_agents/4)-(criminal_total/4)
 
         for i_k in range(self.num_agents):
-            # Create zones
-            if zone_1 > 0:
-                zone = 1
-                zone_1 -= 1
-            elif zone_2 > 0:
-                zone = 2
-                zone_2 -= 1
-            elif zone_3 > 0:
-                zone = 3
-                zone_3 -= 1
-            else:
-                zone = 4  
-
-            position = self.random_activity_generator(zone) 
-            prev_position = self.random_activity_generator(zone)
             moving = "moving"
             destination = []
             timer = 0
             travel_speed = np.random.uniform(6,9)
             N_victimised = 0
-
-            # Parameters for creating random distribution
-            lower = 1
-            upper = 11
-            mu = 5.5
-            sigma = 1.2
-            N = 1
-            attractiveness = sct.truncnorm.rvs(
-                    (lower-mu)/sigma,(upper-mu)/sigma,loc=mu,scale=sigma,size=N)
-            perceived_guardianship = sct.truncnorm.rvs(
-                    (lower-mu)/sigma,(upper-mu)/sigma,loc=mu,scale=sigma,size=N)
+            stop_searched = 0
+            attractiveness = self.random_distribution()
+            perceived_guardianship = self.random_distribution()
             perceived_capability = np.random.uniform(-5,6) # random number between -5 and 5.
 
             # Assign criminal propensity rates to all agents. 
@@ -122,17 +109,34 @@ class Map(Model):
                 chronic_offender = False
                 time_to_offending = np.random.uniform(0,43200)
                 victimisation = 0 # Will not be used
+                zone = self.random.choice(range(1,5)) # Give the offender a random grid cell
             elif chronic_criminal > 0:
                 criminal_propensity = 10 # Propensity score of 10
                 chronic_criminal -= 1
                 chronic_offender = True
                 time_to_offending = 0
                 victimisation = 0 # Will not be used
+                zone = self.random.choice(range(1,5)) # Give the offender a random grid cell
             else:
                 criminal_propensity = 0 # Propensity score of 0
                 chronic_offender = False
                 time_to_offending = 0 # Not applicable to law-abiding citizens.
                 victimisation = 20
+                # Assign zones to civilians with no criminal propensity:
+                if zone_1 > 0:
+                    zone = 1
+                    zone_1 -= 1
+                elif zone_2 > 0:
+                    zone = 2
+                    zone_2 -= 1
+                elif zone_3 > 0:
+                    zone = 3
+                    zone_3 -= 1
+                else:
+                    zone = 4
+
+            position = self.random_activity_generator(zone) 
+            prev_position = self.random_activity_generator(zone)
 
             # Assign random activity nodes for the agents. This will be their routine activities.
             activity_nodes = []
@@ -179,7 +183,8 @@ class Map(Model):
             perceived_capability,
             N_victimised,
             ethnicity,
-            zone)
+            zone,
+            stop_searched)
             self.schedule.add(a)
             self.grid.place_agent(a, position)
 
@@ -187,9 +192,9 @@ class Map(Model):
         #----------------------------------------------------------------
         # Cop values:
         nr_of_officers = round(self.num_cops * (self.N_strategic_cops / 100)) # Only strategic
-        patrol_1 = (self.num_cops/4) - nr_of_officers
-        patrol_2 = (self.num_cops/4) - nr_of_officers
-        patrol_3 = (self.num_cops/4) - nr_of_officers
+        patrol_1 = (self.num_cops/4) - (nr_of_officers/4)
+        patrol_2 = (self.num_cops/4) - (nr_of_officers/4)
+        patrol_3 = (self.num_cops/4) - (nr_of_officers/4)
 
         for j_k in range(self.num_cops):
             cop_id = j_k + 10000000000
@@ -240,12 +245,25 @@ class Map(Model):
         #----------------------------------------------------------------
         self.datacollector = DataCollector(
             model_reporters={
-                "Victimised": get_total_offences
+                "Victimised": get_total_offences,
+                "Stopped_Searched": get_N_stopsearch
                 },
             agent_reporters={
                 "Position": "pos"
             }
         )
+
+    def random_distribution(self):
+        lower = 1
+        upper = 11
+        mu = 5.5
+        sigma = 1.2
+        N = 1
+
+        random_distr = sct.truncnorm.rvs(
+            (lower-mu)/sigma,(upper-mu)/sigma,loc=mu,scale=sigma,size=N)
+        
+        return random_distr
 
     def random_activity_generator(self, zone):
         """
@@ -277,8 +295,7 @@ class Map(Model):
         Create a random node on the road map where the cop agent will move to.
         """
         grid_zone = patrol_area
-        all_agents = self.schedule.agents
-        roads = [obj for obj in all_agents if isinstance(obj, StreetPatch)]
+        roads = [obj for obj in self.schedule.agents if isinstance(obj, StreetPatch)]
         list_of_roads = []
         for i in roads:
             if i.typ == "road" and i.grid_nr == grid_zone:
@@ -290,13 +307,16 @@ class Map(Model):
 
     def step(self):
         """
-        Runs a single tick of the clock in the simulation
+        Runs a single tick of the clock in the simulation.
         """
         self.datacollector.collect(self)
         self.schedule.step()
         self.finished()
     
     def finished(self):
+        """
+        Check if the model has reached its limit and then stop the simulation.
+        """
         N_ticks = 0
         if N_ticks == 10:
             self.running = False
@@ -314,16 +334,3 @@ class Map(Model):
             truncated = temp[temp <= max_value]
             if len(truncated) >= size:
                 return truncated[:size]
-
-
-    @staticmethod
-    def count_ethnic_citizens(model, ethnicity):
-        """
-        Helper method to count agent ethnicity.
-        """
-        ethnic_count = 0
-        for agent in model.schedule.agents:
-            if agent.typ == "civilian":
-                if agent.ethnicity == ethnicity:
-                    ethnic_count += 1
-        return ethnic_count

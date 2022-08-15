@@ -11,7 +11,7 @@ from mesa.visualization.UserParam import UserSettableParameter
 set_height = 103
 set_width = 100
 n_cops = 13
-n_agents = 300
+n_agents = 114 # 11402
 
 # Design the agent portrayal
 def agent_portrayal(agent):
@@ -34,7 +34,7 @@ def agent_portrayal(agent):
             portrayal["h"] = 1
         
     elif agent.typ == "road":
-        if agent.model.see_crime == True: # Only works if checkbox for showing crims is True.
+        if agent.model.see_crime == True: # Only works if checkbox for showing crime is True.
             if agent.crime_incidents > 5:
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#34495E"
