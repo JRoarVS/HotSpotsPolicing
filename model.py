@@ -16,6 +16,23 @@ def get_N_stopsearch(model):
     agents = [a.stop_searched for a in model.schedule.agents if isinstance(a, Civilian)]
     return int(np.sum(agents))
 
+def get_ethnicity(agent):
+    """Returns the ethnicity of the agent"""
+    if isinstance(agent, Civilian):
+        ethnic = agent.ethnicity
+    else:
+        ethnic = "NA"
+    return ethnic
+
+def get_offend_score(agent):
+    """Returns the offend score of an civilian agent"""
+    if isinstance(agent, Civilian):
+        offend = agent.offend_score
+    else:
+        offend = "NA"
+    return offend
+
+
 # GLOBAL VARIABLES:
 #--------------------------------------------------------------------------
 # Offending variables:
@@ -28,6 +45,10 @@ OTHER_PERC = 0.233
 ASIAN_PERC = 0.185
 BLACK_PERC = 0.133
 
+# Values for testing the model (REMOVE):
+MONTH = 43200
+YEAR = 518400
+
 class Map(Model):
     """
     A model that simulates hot spots policing in a city and contains all the agents.
@@ -39,6 +60,7 @@ class Map(Model):
         self.schedule = RandomActivation(self)
         self.running =  True
         self.N_victims = 0
+        self.N_ticks = 0
         # Visualisation:
         self.N_strategic_cops = N_strategic_cops # Slider: Adjust the percentage of strategic cops.
         self.show_risky = show_risky # Checkbox: Show which grid cells are risky locations.
@@ -50,7 +72,7 @@ class Map(Model):
         for x_k in range(width):
             for y_k in range(height):
                 """creates an agent with unique ID"""
-                i = 10000000 + (x_k * height) + y_k
+                i = 300000 + (x_k * height) + y_k
                 position = (x_k, y_k)
                 risk = self.truncated_poisson(0.19, 6, 1) # Draw a random number from a poisson distribution.
                 crime_incidents = 0
@@ -197,7 +219,7 @@ class Map(Model):
         patrol_3 = (self.num_cops/4) - (nr_of_officers/4)
 
         for j_k in range(self.num_cops):
-            cop_id = j_k + 10000000000
+            cop_id = j_k + 20000000
             prev_position = position
             moving = "moving" 
             timer = 0
@@ -246,10 +268,12 @@ class Map(Model):
         self.datacollector = DataCollector(
             model_reporters={
                 "Victimised": get_total_offences,
-                "Stopped_Searched": get_N_stopsearch
+                "Stopped_Searched": get_N_stopsearch,
                 },
             agent_reporters={
-                "Position": "pos"
+                "Position": "pos",
+                "Ethnicity": get_ethnicity,
+                "Offend_score": get_offend_score
             }
         )
 
@@ -317,11 +341,10 @@ class Map(Model):
         """
         Check if the model has reached its limit and then stop the simulation.
         """
-        N_ticks = 0
-        if N_ticks == 10:
+        if self.N_ticks == MONTH:
             self.running = False
         else:
-            N_ticks += 1
+            self.N_ticks += 1
 
     def truncated_poisson(self, mu, max_value, size):
         """

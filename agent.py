@@ -81,6 +81,7 @@ class Civilian(Agent):
         self.N_victimised = N_victimised
         self.zone = zone
         self.stop_searched = stop_searched
+        self.offend_score = 0
 
     def move(self):
         """
@@ -162,9 +163,7 @@ class Civilian(Agent):
 
             if len(filtered_cell) > 1:
                 victim = self.random.choice([i for i in filtered_cell if i not in the_offender])
-                if self.cop_nearby():
-                    print("There was cops nearby")
-                else:
+                if self.cop_nearby() == False:
                     road_risk = 10 # Road risk can't be 10 
                     for f in same_cell:
                         if f.typ == "road":
@@ -173,9 +172,9 @@ class Civilian(Agent):
                         Nc = (len(filtered_cell) - 2) + victim.perceived_guardianship
                         guardianship = self.perceived_capability + Nc 
                         rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
-                        print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
-                        if rational_choice_score >= 10: # CHANGE TO 20!!!!!
-                            self.robbery() # Hmm... Fix?????????????
+                        self.offend_score = rational_choice_score
+                        if rational_choice_score >= 17.4: # CHANGE TO 20!!!!!
+                            print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
                             victim.N_victimised += 1
                             if self.criminal_propensity < 20:
                                 self.time_to_offending = self.time_to_offending_again()
@@ -206,10 +205,7 @@ class Civilian(Agent):
             return True # Cops nearby
         else:
             return False # No cops nearby
-    
-    def robbery(self):
-        return
-    
+
     def update_neighbors(self):
         """
         Look around and identify the neighbours.
@@ -383,7 +379,7 @@ class Cop(Agent):
         if len(filtered_cell) > 1:
             suspect = self.random.choice([i for i in filtered_cell if i not in the_police])
             suspect.stop_searched += 1
-            print("I've been stopped and searched", suspect.stop_searched, "time(s).")
+            # print("I've been stopped and searched", suspect.stop_searched, "time(s).")
 
 
     def step(self):

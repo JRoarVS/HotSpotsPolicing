@@ -5,13 +5,31 @@ from mesa.visualization.modules import CanvasGrid
 from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 from mesa.visualization.UserParam import UserSettableParameter
+from mesa import batchrunner
 
+import pandas as pd
+from multiprocessing import freeze_support
+
+
+#----------------------------------------
+#GLOBAL PROCEDURES
+def getdata_model(model):
+    """A procedure that extracts model data from the datacollector"""
+    result = model.datacollector.get_model_vars_dataframe()
+    return result
+
+def getdata_model(model):
+    """A procedure that extracts agent data from the datacollector"""
+    result = model.datacollector.get_agent_vars_dataframe()
+    return result
 
 #set parameters
-set_height = 103
-set_width = 100
-n_cops = 13
-n_agents = 114 # 11402
+HEIGHT = 103
+WIDTH = 100
+N_COPS = 41 # 41
+N_AGENTS = 11402 # 11402
+
+OPTION = 2
 
 # Design the agent portrayal
 def agent_portrayal(agent):
@@ -38,7 +56,7 @@ def agent_portrayal(agent):
             if agent.crime_incidents > 5:
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#34495E"
-                portrayal["Layer"] = 1
+                portrayal["Layer"] = 1  
                 portrayal["w"] = 1
                 portrayal["h"] = 1
             elif 3 > agent.crime_incidents > 0:
@@ -123,8 +141,8 @@ def agent_portrayal(agent):
 # Create the grid with the agent design
 grid = CanvasGrid(
     agent_portrayal, 
-    set_width,
-    set_height, 
+    WIDTH,
+    HEIGHT, 
     800,
     800)
 
@@ -133,42 +151,84 @@ chart = ChartModule([{"Label": "Victimised",
                       "Color": "Black"}],
                    data_collector_name="datacollector")
 
-# Dictionary of user settable parameters - these map to the model __init__ parameters
-model_params = {
-    # Slider for adjusting number of hot spots police
-    "N_strategic_cops": UserSettableParameter(param_type="slider",
-    value= 10, 
-    name="Percentage of Hot Spots Policing Patrols", 
-    min_value= 0, 
-    max_value= 100,
-    step= 10, 
-    description="Percentage of cops that are patrolling hotspots"
-    ),
-    # Show risky locations
-    "show_risky": UserSettableParameter(param_type="checkbox",
-     name="Show Risky Locations",
-     value=False), 
-     # Visualise crime events
-    "see_crime": UserSettableParameter(param_type="checkbox",
-     name="Show Crime Hot Spots",
-     value=False),
-    # Visualise zones
-    "show_zones": UserSettableParameter(param_type="checkbox",
-     name="Show the Four Zones",
-     value=False), 
-    "N": n_agents, 
-    "NC": n_cops, 
-    "width": set_width, 
-    "height": set_height
-}
+if OPTION == 1: # Initiate the server through jupyter in browser to visualise.
+    # Dictionary of user settable parameters - these map to the model __init__ parameters
+    model_params = {
+        # Slider for adjusting number of hot spots police
+        "N_strategic_cops": UserSettableParameter(param_type="slider",
+        value= 10, 
+        name="Percentage of Hot Spots Policing Patrols", 
+        min_value= 0, 
+        max_value= 100,
+        step= 10, 
+        description="Percentage of cops that are patrolling hotspots"
+        ),
+        # Show risky locations
+        "show_risky": UserSettableParameter(param_type="checkbox",
+        name="Show Risky Locations",
+        value=False), 
+        # Visualise crime events
+        "see_crime": UserSettableParameter(param_type="checkbox",
+        name="Show Crime Hot Spots",
+        value=False),
+        # Visualise zones
+        "show_zones": UserSettableParameter(param_type="checkbox",
+        name="Show the Four Zones",
+        value=False), 
+        "N": N_AGENTS, 
+        "NC": N_COPS, 
+        "width": WIDTH, 
+        "height": HEIGHT
+    }
 
-# Set up the server
-server = ModularServer(Map,
-                       [grid, chart],
-                       "Hot Spots Policing",
-                       model_params
-                       )
+    # Set up the server
+    server = ModularServer(Map,
+                        [grid, chart],
+                        "Hot Spots Policing",
+                        model_params
+                        )
 
-# Initiate the server
-server.port = 8521 # The default
-server.launch()
+
+    # Initiate the server through jupyter in browser to visualise.
+    server.port = 8521 # The default
+    server.launch()
+
+elif OPTION == 2: # Collect data through batchrunner without visualisation:
+        # Dictionary of user settable parameters - these map to the model __init__ parameters
+    model_params = {
+        # Slider for adjusting number of hot spots police
+        "N_strategic_cops": 10,
+        "show_risky": False,
+        "see_crime": False,
+        "show_zones": False, 
+        "N": N_AGENTS, 
+        "NC": N_COPS, 
+        "width": WIDTH, 
+        "height": HEIGHT
+    }
+
+    model_run = Map(model_params["N"], 
+    model_params["NC"], 
+    model_params["width"], 
+    model_params["height"], 
+    model_params["N_strategic_cops"], 
+    model_params["show_risky"], 
+    model_params["see_crime"], 
+    model_params["show_zones"])
+
+    if __name__ == '__main__':
+        freeze_support()
+    results_batch = batchrunner.batch_run(
+        Map,
+        model_params,
+        iterations = 6,
+        number_processes= None,
+        data_collection_period = MONTH,
+        display_progress= True
+    )
+
+    results_batch_df = pd.DataFrame(results_batch)
+    results_batch_df.to_csv("robbery_rates.csv")
+
+    print(results_batch_df.keys())
+    print(results_batch_df.tail())
