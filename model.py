@@ -157,35 +157,41 @@ class Map(Model):
                 else:
                     zone = 4
 
-            position = self.random_activity_generator(zone) 
-            prev_position = self.random_activity_generator(zone)
+            list_of_nodes = self.random_activity_generator(zone) 
+            list_of_risky_nodes = self.risky_activity_generator(zone)
+            position = list_of_nodes[0]
+            prev_position = list_of_nodes[0]
 
             # Assign random activity nodes for the agents. This will be their routine activities.
             activity_nodes = []
-            N_nodes = 4 # Normal nodes
-            R_nodes = 2 # Risky nodes
-            for activity in range(0,N_nodes):
-                if R_nodes > 0:
-                    activity = self.risky_activity_generator(zone)
-                    activity_nodes.append(activity)
-                    R_nodes -= 1
-                else:
-                    activity = self.random_activity_generator(zone)
-                    activity_nodes.append(activity)  
+            activity_nodes.append(list_of_nodes[1])
+            activity_nodes.append(list_of_nodes[2])
+            activity_nodes.append(list_of_risky_nodes[0])
+            activity_nodes.append(list_of_risky_nodes[1])
 
             # Assign ethnicities to the population
-            if white_pop > 0:
+            list_of_possible_ethn = []
+            pops = [white_pop, other_pop, asian_pop, black_pop]
+            for i in pops:
+                if i > 0:
+                    if i == white_pop:
+                        list_of_possible_ethn.append("white")
+                    elif i == other_pop:
+                        list_of_possible_ethn.append("other")     
+                    elif asian_pop > 0:
+                        list_of_possible_ethn.append("asian")
+                    elif black_pop > 0:
+                        list_of_possible_ethn.append("black")
+            
+            ethnicity = self.random.choice(list_of_possible_ethn)
+            if ethnicity == "white":
                 white_pop -= 1
-                ethnicity = "white"
-            elif other_pop > 0:
-                other_pop -= 1
-                ethnicity = "other"
-            elif asian_pop > 0:
+            elif ethnicity == "other":
+                other_pop -= 1     
+            elif ethnicity == "asian":
                 asian_pop -= 1
-                ethnicity = "asian"
-            elif black_pop > 0:
-                black_pop -= 1
-                ethnicity = "black"          
+            elif ethnicity == "black":
+                black_pop -= 1     
 
             a = Civilian(i_k, 
             self, 
@@ -294,25 +300,31 @@ class Map(Model):
         Creates a random node for the agent which will serve as the civilians' home and activity nodes.
         """
         list_of_roads = []
+        list_of_output = []
         for i in self.schedule.agents:
             if i.typ == "building" and i.grid_nr == zone:
                 list_of_roads.append(i.pos)
         
-        xy = self.random.choice(list_of_roads)
+        for _ in range(3):
+            selection = self.random.choice(list_of_roads)
+            list_of_output.append(selection)
 
-        return (xy) 
+        return list_of_output 
     
     def risky_activity_generator(self, zone):
         """
         Selects random nodes that are risky (risk > 0)
         """
         list_of_risky_roads = []
+        list_of_output = []
         for i in self.schedule.agents:
             if i.typ == "building" and i.grid_nr == zone and i.risk > 0:
                 list_of_risky_roads.append(i.pos)
-
-        xy = self.random.choice(list_of_risky_roads)
-        return(xy)
+        for _ in range(2):
+            selection = self.random.choice(list_of_risky_roads)
+            list_of_output.append(selection)
+        
+        return(list_of_output)
     
     def random_patrol_node_generator(self, patrol_area):
         """

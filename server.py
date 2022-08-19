@@ -1,3 +1,4 @@
+import cProfile
 from model import *
 from agent import *
 
@@ -6,9 +7,9 @@ from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 from mesa import batchrunner
-
 import pandas as pd
 from multiprocessing import freeze_support
+import time
 
 
 #----------------------------------------
@@ -23,13 +24,16 @@ def getdata_model(model):
     result = model.datacollector.get_agent_vars_dataframe()
     return result
 
+
 #set parameters
 HEIGHT = 103
 WIDTH = 100
 N_COPS = 41 # 41
 N_AGENTS = 11402 # 11402
 
-OPTION = 2
+OPTION = 1 
+#1 = visualisation
+#2 = batch_run
 
 # Design the agent portrayal
 def agent_portrayal(agent):
@@ -148,8 +152,8 @@ grid = CanvasGrid(
 
 # Chart for datacollection
 chart = ChartModule([{"Label": "Victimised",
-                      "Color": "Black"}],
-                   data_collector_name="datacollector")
+                    "Color": "Black"}],
+                data_collector_name="datacollector")
 
 if OPTION == 1: # Initiate the server through jupyter in browser to visualise.
     # Dictionary of user settable parameters - these map to the model __init__ parameters
@@ -216,19 +220,43 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
     model_params["see_crime"], 
     model_params["show_zones"])
 
-    if __name__ == '__main__':
-        freeze_support()
+    # done = False
+    # if __name__ == '__main__':
+    #     freeze_support()
     results_batch = batchrunner.batch_run(
         Map,
         model_params,
-        iterations = 6,
-        number_processes= None,
+        iterations = 1,
+        number_processes= 1,
         data_collection_period = MONTH,
         display_progress= True
     )
+        # done = True
 
+    # if done == True:
     results_batch_df = pd.DataFrame(results_batch)
-    results_batch_df.to_csv("robbery_rates.csv")
+    results_batch_df.to_csv("simulation_data.csv")
 
     print(results_batch_df.keys())
     print(results_batch_df.tail())
+
+# def main():
+#     start = time.perf_counter()
+#     speed_test()
+#     elapsed = time.perf_counter() - start
+#     print(f'done in {elapsed:.2f}s')
+
+# def main():
+#     import cProfile
+#     import pstats
+
+#     with cProfile.Profile() as pr:
+#         speed_test()
+    
+#     stats = pstats.Stats(pr)
+#     stats.sort_stats(pstats.SortKey.TIME)
+#     stats.dump_stats(filename='needs_profiling.prof')
+
+# if __name__ == '__main__':
+#     main()
+    
