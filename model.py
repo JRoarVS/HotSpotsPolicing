@@ -1,3 +1,4 @@
+from inspect import getattr_static
 import numpy as np
 import scipy.stats as sct
 from mesa import Model
@@ -6,6 +7,8 @@ from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 from agent import Civilian, StreetPatch, Cop
 
+# GLOBAL PROCEDURES:
+#--------------------------------------------------------------------------
 def get_total_offences(model):
     """Returns the number of agents that have been a victim to street robbery."""
     agents = [a.N_victimised for a in model.schedule.agents if isinstance(a, Civilian)]
@@ -23,6 +26,7 @@ def get_ethnicity(agent):
     else:
         ethnic = "NA"
     return ethnic
+
 
 def get_offend_score(agent):
     """Returns the offend score of an civilian agent"""
@@ -278,8 +282,8 @@ class Map(Model):
                 },
             agent_reporters={
                 "Position": "pos",
-                "Ethnicity": get_ethnicity,
-                "Offend_score": get_offend_score
+                "Ethnicity": lambda a: a.ethnicity,
+                "Offend_score": lambda a: getattr(a, "offend_score", None)
             }
         )
 

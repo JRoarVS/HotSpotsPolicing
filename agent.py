@@ -173,7 +173,7 @@ class Civilian(Agent):
                         guardianship = self.perceived_capability + Nc 
                         rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
                         self.offend_score = rational_choice_score
-                        if rational_choice_score >= 17.4: # CHANGE TO 20!!!!!
+                        if rational_choice_score >= 13.73: # 13.73 produces an average of 39 robberies per month
                             print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
                             victim.N_victimised += 1
                             if self.criminal_propensity < 20:

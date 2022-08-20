@@ -24,14 +24,14 @@ def getdata_model(model):
     result = model.datacollector.get_agent_vars_dataframe()
     return result
 
-
+# def speed_test():
 #set parameters
 HEIGHT = 103
 WIDTH = 100
 N_COPS = 41 # 41
 N_AGENTS = 11402 # 11402
 
-OPTION = 1 
+OPTION = 2 
 #1 = visualisation
 #2 = batch_run
 
@@ -220,25 +220,25 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
     model_params["see_crime"], 
     model_params["show_zones"])
 
-    # done = False
-    # if __name__ == '__main__':
-    #     freeze_support()
-    results_batch = batchrunner.batch_run(
-        Map,
-        model_params,
-        iterations = 1,
-        number_processes= 1,
-        data_collection_period = MONTH,
-        display_progress= True
-    )
-        # done = True
+    done = False
+    if __name__ == '__main__':
+        freeze_support()
+        results_batch = batchrunner.batch_run(
+            Map,
+            model_params,
+            iterations = 1,
+            number_processes= None,
+            data_collection_period = MONTH,
+            display_progress= True
+        )
+        done = True
 
-    # if done == True:
-    results_batch_df = pd.DataFrame(results_batch)
-    results_batch_df.to_csv("simulation_data.csv")
+    if done == True:
+        results_batch_df = pd.DataFrame(results_batch)
+        results_batch_df.to_csv("simulation_data.csv")
 
-    print(results_batch_df.keys())
-    print(results_batch_df.tail())
+    # print(results_batch_df.keys())
+    # print(results_batch_df.tail())
 
 # def main():
 #     start = time.perf_counter()
@@ -255,7 +255,7 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
     
 #     stats = pstats.Stats(pr)
 #     stats.sort_stats(pstats.SortKey.TIME)
-#     stats.dump_stats(filename='needs_profiling.prof')
+#     stats.dump_stats(filename='needs_profiling2.prof')
 
 # if __name__ == '__main__':
 #     main()
