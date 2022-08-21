@@ -1,19 +1,18 @@
-import cProfile
+# import cProfile
+# import time
 from model import *
 from agent import *
-
+import pandas as pd
+from mesa import batchrunner
 from mesa.visualization.modules import CanvasGrid
-from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 from mesa.visualization.UserParam import UserSettableParameter
-from mesa import batchrunner
-import pandas as pd
+from mesa.visualization.ModularVisualization import ModularServer
 from multiprocessing import freeze_support
-import time
-
 
 #----------------------------------------
 #GLOBAL PROCEDURES
+
 def getdata_model(model):
     """A procedure that extracts model data from the datacollector"""
     result = model.datacollector.get_model_vars_dataframe()
@@ -24,17 +23,25 @@ def getdata_model(model):
     result = model.datacollector.get_agent_vars_dataframe()
     return result
 
+#----------------------------------------
+# Set parameters:
+
 # def speed_test():
-#set parameters
+# Model parameters:
 HEIGHT = 103
 WIDTH = 100
 N_COPS = 41 # 41
 N_AGENTS = 11402 # 11402
 
+# Data collection parameters
+COLLECT_DATA = MONTH
+ITERATIONS = 1
+
 OPTION = 2 
 #1 = visualisation
 #2 = batch_run
 
+#----------------------------------------
 # Design the agent portrayal
 def agent_portrayal(agent):
     portrayal = {
@@ -226,15 +233,16 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
         results_batch = batchrunner.batch_run(
             Map,
             model_params,
-            iterations = 1,
+            iterations = ITERATIONS, 
             number_processes= None,
-            data_collection_period = MONTH,
+            data_collection_period = COLLECT_DATA,
             display_progress= True
         )
         done = True
 
     if done == True:
         results_batch_df = pd.DataFrame(results_batch)
+        #results_batch_df = results_batch_df.loc[:, results_batch_df.columns.intersection(['iteration', 'Victimised', 'Offend_score', 'Stopped_Searched'])]
         results_batch_df.to_csv("simulation_data.csv")
 
     # print(results_batch_df.keys())

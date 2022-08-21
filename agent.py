@@ -4,6 +4,17 @@ from numpy import random
 import operator
 from operator import attrgetter
 
+# GLOBAL VARIABLES:
+#--------------------------------------------------------------------------
+# Stop and search values:
+WHITE_STOP = 0.41
+OTHER_STOP = 0.05
+ASIAN_STOP = 0.16
+BLACK_STOP = 0.38
+
+# Threshold rates:
+ROBBERY_RATE = 17.2 # 17.2 produces an average of 39 robberies per month
+STOP_SEARCH_RATE = 14  # 22 produces an average of 
 
 #----------------------------------------------------------------
 class StreetPatch(Agent):
@@ -173,7 +184,7 @@ class Civilian(Agent):
                         guardianship = self.perceived_capability + Nc 
                         rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
                         self.offend_score = rational_choice_score
-                        if rational_choice_score >= 13.73: # 13.73 produces an average of 39 robberies per month
+                        if rational_choice_score >= ROBBERY_RATE:
                             print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
                             victim.N_victimised += 1
                             if self.criminal_propensity < 20:
@@ -268,6 +279,7 @@ class Cop(Agent):
         self.travel_speed = travel_speed
         self.hotspot_patrol = hotspot_patrol
         self.patrol_area = patrol_area
+        self.stopsearch_score = 0
 
     def move(self):
         """
@@ -368,6 +380,7 @@ class Cop(Agent):
         """
         Stop and search a potential suspect in the same cell as an officer.
         """
+        #self.stopsearch_score = 0 # set/reset stop and search score
         # Get information about agents on the same cell.
         same_cell = self.model.grid.get_cell_list_contents(self.pos)
         # Only select agents that are civilians
@@ -378,7 +391,23 @@ class Cop(Agent):
         the_police = [self]
         if len(filtered_cell) > 1:
             suspect = self.random.choice([i for i in filtered_cell if i not in the_police])
-            suspect.stop_searched += 1
+            if suspect.ethnicity == 'white':
+                ethnic_appearance = WHITE_STOP * 10
+            elif suspect.ethnicity == 'other':
+                ethnic_appearance = OTHER_STOP * 10
+            elif suspect.ethnicity == 'asian':
+                ethnic_appearance = ASIAN_STOP * 10
+            elif suspect.ethnicity == 'black':
+                ethnic_appearance = BLACK_STOP * 10
+            else:
+                print("Non of the ethnics. I am:", suspect.ethnicity)
+                ethnic_appearance = 0
+            
+            stop_search_probability = suspect.attractiveness + ethnic_appearance
+            self.stopsearch_score = stop_search_probability
+
+            if  stop_search_probability >= STOP_SEARCH_RATE:
+                suspect.stop_searched += 1
             # print("I've been stopped and searched", suspect.stop_searched, "time(s).")
 
 

@@ -1,4 +1,3 @@
-from inspect import getattr_static
 import numpy as np
 import scipy.stats as sct
 from mesa import Model
@@ -36,6 +35,14 @@ def get_offend_score(agent):
         offend = "NA"
     return offend
 
+def get_stop_search_score(agent):
+    """Returns the offend score of a cop agent"""
+    if isinstance(agent, Cop):
+        stopsearch = agent.stopsearch_score
+    else:
+        stopsearch = "NA"
+    return stopsearch
+
 
 # GLOBAL VARIABLES:
 #--------------------------------------------------------------------------
@@ -43,13 +50,13 @@ def get_offend_score(agent):
 CRIMINAL_PROPENSITY_RATE = 0.0925 # Rate of agents who have a criminal propensity rate greater than 0.
 CHRONIC_OFFENDER_RATE = 0.05 # Of those with criminal propensity, 5% have a chronic score (propensity = 10).
 
-# Ethnicity values
+# Ethnicity values:
 WHITE_PERC = 0.449
 OTHER_PERC = 0.233
 ASIAN_PERC = 0.185
 BLACK_PERC = 0.133
 
-# Values for testing the model (REMOVE):
+# Time values:
 MONTH = 43200
 YEAR = 518400
 
@@ -172,8 +179,22 @@ class Map(Model):
             activity_nodes.append(list_of_nodes[2])
             activity_nodes.append(list_of_risky_nodes[0])
             activity_nodes.append(list_of_risky_nodes[1])
+            
+            # # Assign ethnicities to the population - Ethnic diversity in zone 1 and only whites in the other zones.
+            # if white_pop > 0:
+            #     white_pop -= 1
+            #     ethnicity = "white"
+            # elif other_pop > 0:
+            #     other_pop -= 1
+            #     ethnicity = "other"
+            # elif asian_pop > 0:
+            #     asian_pop -= 1
+            #     ethnicity = "asian"
+            # elif black_pop > 0:
+            #     black_pop -= 1
+            #     ethnicity = "black"    
 
-            # Assign ethnicities to the population
+            # Assign ethnicities to the population - Uniform distribution
             list_of_possible_ethn = []
             pops = [white_pop, other_pop, asian_pop, black_pop]
             for i in pops:
@@ -187,7 +208,17 @@ class Map(Model):
                     elif black_pop > 0:
                         list_of_possible_ethn.append("black")
             
-            ethnicity = self.random.choice(list_of_possible_ethn)
+            random_float = self.random.uniform(0, 100)
+            if random_float < 44.9 and "white" in list_of_possible_ethn:
+                ethnicity = "white"
+            elif 44.9 < random_float < 68.2 and "other" in list_of_possible_ethn:
+                ethnicity = "other"
+            elif 68.2 < random_float < 86.7 and "asian" in list_of_possible_ethn:
+                ethnicity = "asian"
+            else:
+                ethnicity = "black"
+
+            #ethnicity = self.random.choice(list_of_possible_ethn)
             if ethnicity == "white":
                 white_pop -= 1
             elif ethnicity == "other":
@@ -282,8 +313,10 @@ class Map(Model):
                 },
             agent_reporters={
                 "Position": "pos",
-                "Ethnicity": lambda a: a.ethnicity,
-                "Offend_score": lambda a: getattr(a, "offend_score", None)
+                "Ethnicity": lambda a: getattr(a, "ethnicity", None),
+                "Offend_score": lambda a: getattr(a, "offend_score", None),
+                "stopsearch_score": get_stop_search_score,
+                "zone": lambda a: getattr(a, "zone", None)
             }
         )
 
