@@ -1,5 +1,3 @@
-# import cProfile
-# import time
 from model import *
 from agent import *
 import pandas as pd
@@ -24,145 +22,85 @@ def getdata_model(model):
     return result
 
 #----------------------------------------
-# Set parameters:
-
-# def speed_test():
 # Model parameters:
 HEIGHT = 103
 WIDTH = 100
 N_COPS = 41 # 41
 N_AGENTS = 11402 # 11402
 
-# Data collection parameters
+# Data collection parameters:
 COLLECT_DATA = MONTH
 ITERATIONS = 1
 
+# Option for how the model should run:
 OPTION = 2 
 #1 = visualisation
 #2 = batch_run
 
-#----------------------------------------
-# Design the agent portrayal
-def agent_portrayal(agent):
-    portrayal = {
-        "Filled": "true",
-        "r": 0.5} 
-    
-    if agent.typ == "building":
-        if agent.risk > 0 and agent.model.show_risky == True:
-            portrayal["Shape"] = "rect"
-            portrayal["Color"] = "#4A235A"
-            portrayal["Layer"] = 0
-            portrayal["w"] = 1
-            portrayal["h"] = 1
-        else:
-            portrayal["Shape"] = "rect"
-            portrayal["Color"] = "#2ECC71"
-            portrayal["Layer"] = 0
-            portrayal["w"] = 1
-            portrayal["h"] = 1
+if OPTION == 1: # Initiate the server through jupyter in browser to visualise.
+    #----------------------------------------
+    # Design the agent portrayal
+    def agent_portrayal(agent):
+        portrayal = {
+            "Filled": "true",
+            "r": 0.5} 
         
-    elif agent.typ == "road":
-        if agent.model.see_crime == True: # Only works if checkbox for showing crime is True.
-            if agent.crime_incidents > 5:
+        if agent.typ == "building":
                 portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#34495E"
-                portrayal["Layer"] = 1  
+                portrayal["Color"] = "#2ECC71"
+                portrayal["Layer"] = 0
                 portrayal["w"] = 1
                 portrayal["h"] = 1
-            elif 3 > agent.crime_incidents > 0:
-                portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#839192" 
-                portrayal["Layer"] = 1
-                portrayal["w"] = 1
-                portrayal["h"] = 1
-            elif 5 > agent.crime_incidents > 3:
-                portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#7F8C8" 
-                portrayal["Layer"] = 1
-                portrayal["w"] = 1
-                portrayal["h"] = 1
-            else:            
+            
+        elif agent.typ == "road":
                 portrayal["Shape"] = "rect"
                 portrayal["Color"] = "#CACFD2" 
                 portrayal["Layer"] = 1
                 portrayal["w"] = 1
-                portrayal["h"] = 1    
-        elif agent.model.show_zones == True: # Only works if checkbox for showing zones is True.
-            if agent.grid_nr == 1:            
-                portrayal["Shape"] = "rect"
-                portrayal["Color"] = "black" 
-                portrayal["Layer"] = 1
-                portrayal["w"] = 1
-                portrayal["h"] = 1
-            elif agent.grid_nr == 2:
-                portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#1B4F72" 
-                portrayal["Layer"] = 1
-                portrayal["w"] = 1
-                portrayal["h"] = 1
-            elif agent.grid_nr == 3:
-                portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#6C3483" 
-                portrayal["Layer"] = 1
-                portrayal["w"] = 1
-                portrayal["h"] = 1                     
-            elif agent.grid_nr == 4:
-                portrayal["Shape"] = "rect"
-                portrayal["Color"] = "#7D6608" 
-                portrayal["Layer"] = 1
-                portrayal["w"] = 1
-                portrayal["h"] = 1
-        else:
-            portrayal["Shape"] = "rect"
-            portrayal["Color"] = "#CACFD2" 
-            portrayal["Layer"] = 1
-            portrayal["w"] = 1
-            portrayal["h"] = 1                    
+                portrayal["h"] = 1                    
 
-    elif agent.typ == "civilian":
-        if agent.chronic_offender == True:
-            portrayal["Shape"] = "circle"
-            portrayal["Color"] = "red"
-            portrayal["Layer"] = 2
-            portrayal["r"] = 1
-        elif agent.chronic_offender == False and agent.criminal_propensity > 0:
-            portrayal["Shape"] = "circle"
-            portrayal["Color"] = "#B12702"
-            portrayal["Layer"] = 2
-            portrayal["r"] = 1
-        else:
-            portrayal["Shape"] = "circle"
-            portrayal["Color"] = "#C2654C"
-            portrayal["Layer"] = 2
-            portrayal["r"] = 1
-    elif agent.typ == "cop":
-        if agent.hotspot_patrol:
-            portrayal["Shape"] = "circle"
-            portrayal["Color"] = "#5B2C6F"
-            portrayal["Layer"] = 2
-            portrayal["r"] = 1
-        else:
-            portrayal["Shape"] = "circle"
-            portrayal["Color"] = "blue"
-            portrayal["Layer"] = 2
-            portrayal["r"] = 1
-    return portrayal
+        elif agent.typ == "civilian":
+            if agent.chronic_offender == True:
+                portrayal["Shape"] = "circle"
+                portrayal["Color"] = "red"
+                portrayal["Layer"] = 2
+                portrayal["r"] = 1
+            elif agent.chronic_offender == False and agent.criminal_propensity > 0:
+                portrayal["Shape"] = "circle"
+                portrayal["Color"] = "#B12702"
+                portrayal["Layer"] = 2
+                portrayal["r"] = 1
+            else:
+                portrayal["Shape"] = "circle"
+                portrayal["Color"] = "#C2654C"
+                portrayal["Layer"] = 2
+                portrayal["r"] = 1
+        elif agent.typ == "cop":
+            if agent.hotspot_patrol:
+                portrayal["Shape"] = "circle"
+                portrayal["Color"] = "#5B2C6F"
+                portrayal["Layer"] = 2
+                portrayal["r"] = 1
+            else:
+                portrayal["Shape"] = "circle"
+                portrayal["Color"] = "blue"
+                portrayal["Layer"] = 2
+                portrayal["r"] = 1
+        return portrayal
 
-# Create the grid with the agent design
-grid = CanvasGrid(
-    agent_portrayal, 
-    WIDTH,
-    HEIGHT, 
-    800,
-    800)
+    # Create the grid with the agent design
+    grid = CanvasGrid(
+        agent_portrayal, 
+        WIDTH,
+        HEIGHT, 
+        800,
+        800)
 
-# Chart for datacollection
-chart = ChartModule([{"Label": "Victimised",
-                    "Color": "Black"}],
-                data_collector_name="datacollector")
+    # Chart for datacollection
+    chart = ChartModule([{"Label": "Victimised",
+                        "Color": "Black"}],
+                    data_collector_name="datacollector")
 
-if OPTION == 1: # Initiate the server through jupyter in browser to visualise.
     # Dictionary of user settable parameters - these map to the model __init__ parameters
     model_params = {
         # Slider for adjusting number of hot spots police
@@ -174,18 +112,6 @@ if OPTION == 1: # Initiate the server through jupyter in browser to visualise.
         step= 10, 
         description="Percentage of cops that are patrolling hotspots"
         ),
-        # Show risky locations
-        "show_risky": UserSettableParameter(param_type="checkbox",
-        name="Show Risky Locations",
-        value=False), 
-        # Visualise crime events
-        "see_crime": UserSettableParameter(param_type="checkbox",
-        name="Show Crime Hot Spots",
-        value=False),
-        # Visualise zones
-        "show_zones": UserSettableParameter(param_type="checkbox",
-        name="Show the Four Zones",
-        value=False), 
         "N": N_AGENTS, 
         "NC": N_COPS, 
         "width": WIDTH, 
@@ -209,9 +135,6 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
     model_params = {
         # Slider for adjusting number of hot spots police
         "N_strategic_cops": 10,
-        "show_risky": False,
-        "see_crime": False,
-        "show_zones": False, 
         "N": N_AGENTS, 
         "NC": N_COPS, 
         "width": WIDTH, 
@@ -222,10 +145,7 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
     model_params["NC"], 
     model_params["width"], 
     model_params["height"], 
-    model_params["N_strategic_cops"], 
-    model_params["show_risky"], 
-    model_params["see_crime"], 
-    model_params["show_zones"])
+    model_params["N_strategic_cops"])
 
     done = False
     if __name__ == '__main__':
@@ -242,29 +162,19 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
 
     if done == True:
         results_batch_df = pd.DataFrame(results_batch)
-        #results_batch_df = results_batch_df.loc[:, results_batch_df.columns.intersection(['iteration', 'Victimised', 'Offend_score', 'Stopped_Searched'])]
+        results_batch_df = results_batch_df.loc[:, results_batch_df.columns.intersection([
+        'iteration',
+        'Step',
+        'N_strategic_cops', 
+        'Victimised', 
+        'Stopped_Searched',
+        'AgentID',
+        'Ethnicity',
+        'zone',
+        'N_victimised',
+        'N_stop_searched'])]
+        results_batch_df = results_batch_df[results_batch_df['AgentID'] < 12000]
         results_batch_df.to_csv("simulation_data.csv")
 
-    # print(results_batch_df.keys())
-    # print(results_batch_df.tail())
-
-# def main():
-#     start = time.perf_counter()
-#     speed_test()
-#     elapsed = time.perf_counter() - start
-#     print(f'done in {elapsed:.2f}s')
-
-# def main():
-#     import cProfile
-#     import pstats
-
-#     with cProfile.Profile() as pr:
-#         speed_test()
-    
-#     stats = pstats.Stats(pr)
-#     stats.sort_stats(pstats.SortKey.TIME)
-#     stats.dump_stats(filename='needs_profiling2.prof')
-
-# if __name__ == '__main__':
-#     main()
-    
+        print(results_batch_df.keys())
+        print(results_batch_df.tail())

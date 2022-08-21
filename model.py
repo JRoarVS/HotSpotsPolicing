@@ -27,21 +27,21 @@ def get_ethnicity(agent):
     return ethnic
 
 
-def get_offend_score(agent):
-    """Returns the offend score of an civilian agent"""
-    if isinstance(agent, Civilian):
-        offend = agent.offend_score
-    else:
-        offend = "NA"
-    return offend
+# def get_offend_score(agent):
+#     """Returns the offend score of an civilian agent"""
+#     if isinstance(agent, Civilian):
+#         offend = agent.offend_score
+#     else:
+#         offend = "NA"
+#     return offend
 
-def get_stop_search_score(agent):
-    """Returns the offend score of a cop agent"""
-    if isinstance(agent, Cop):
-        stopsearch = agent.stopsearch_score
-    else:
-        stopsearch = "NA"
-    return stopsearch
+# def get_stop_search_score(agent):
+#     """Returns the offend score of a cop agent"""
+#     if isinstance(agent, Cop):
+#         stopsearch = agent.stopsearch_score
+#     else:
+#         stopsearch = "NA"
+#     return stopsearch
 
 
 # GLOBAL VARIABLES:
@@ -64,7 +64,7 @@ class Map(Model):
     """
     A model that simulates hot spots policing in a city and contains all the agents.
     """
-    def __init__(self, N, NC, width, height, N_strategic_cops, show_risky, see_crime, show_zones):
+    def __init__(self, N, NC, width, height, N_strategic_cops):
         self.num_agents = N
         self.num_cops = NC
         self.grid = MultiGrid(width, height, torus=False)
@@ -74,9 +74,6 @@ class Map(Model):
         self.N_ticks = 0
         # Visualisation:
         self.N_strategic_cops = N_strategic_cops # Slider: Adjust the percentage of strategic cops.
-        self.show_risky = show_risky # Checkbox: Show which grid cells are risky locations.
-        self.see_crime = see_crime # Checkbox: Show how crime hot spots are generated.
-        self.show_zones = show_zones # Checkbox: Show the four zones of the map.
 
         # Initialise streetpatch agents.
         #----------------------------------------------------------------
@@ -312,11 +309,10 @@ class Map(Model):
                 "Stopped_Searched": get_N_stopsearch,
                 },
             agent_reporters={
-                "Position": "pos",
                 "Ethnicity": lambda a: getattr(a, "ethnicity", None),
-                "Offend_score": lambda a: getattr(a, "offend_score", None),
-                "stopsearch_score": get_stop_search_score,
-                "zone": lambda a: getattr(a, "zone", None)
+                "zone": lambda a: getattr(a, "zone", None),
+                "N_victimised": lambda a: getattr(a, "N_victimised", None),
+                "N_stop_searched": lambda a: getattr(a, "stop_searched", None),
             }
         )
 

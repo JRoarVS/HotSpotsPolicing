@@ -13,8 +13,8 @@ ASIAN_STOP = 0.16
 BLACK_STOP = 0.38
 
 # Threshold rates:
-ROBBERY_RATE = 17.2 # 17.2 produces an average of 39 robberies per month
-STOP_SEARCH_RATE = 14  # 22 produces an average of 
+ROBBERY_RATE = 17.25 # 17.2 produces an average of 39 robberies per month
+STOP_SEARCH_RATE = 12  # 22 produces an average of  22 stop and searches per month
 
 #----------------------------------------------------------------
 class StreetPatch(Agent):
