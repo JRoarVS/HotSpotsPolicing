@@ -1,3 +1,5 @@
+from cProfile import label
+from random import random
 import numpy as np
 import scipy.stats as sct
 from mesa import Model
@@ -27,23 +29,6 @@ def get_ethnicity(agent):
     return ethnic
 
 
-# def get_offend_score(agent):
-#     """Returns the offend score of an civilian agent"""
-#     if isinstance(agent, Civilian):
-#         offend = agent.offend_score
-#     else:
-#         offend = "NA"
-#     return offend
-
-# def get_stop_search_score(agent):
-#     """Returns the offend score of a cop agent"""
-#     if isinstance(agent, Cop):
-#         stopsearch = agent.stopsearch_score
-#     else:
-#         stopsearch = "NA"
-#     return stopsearch
-
-
 # GLOBAL VARIABLES:
 #--------------------------------------------------------------------------
 # Offending variables:
@@ -60,11 +45,13 @@ BLACK_PERC = 0.133
 MONTH = 43200
 YEAR = 518400
 
+RUN_LENGTH = MONTH
+
 class Map(Model):
     """
     A model that simulates hot spots policing in a city and contains all the agents.
     """
-    def __init__(self, N, NC, width, height, N_strategic_cops):
+    def __init__(self, N, NC, width, height, N_strategic_cops, ethnic_distribution):
         self.num_agents = N
         self.num_cops = NC
         self.grid = MultiGrid(width, height, torus=False)
@@ -72,15 +59,16 @@ class Map(Model):
         self.running =  True
         self.N_victims = 0
         self.N_ticks = 0
-        # Visualisation:
+        # Changeable parameters:
         self.N_strategic_cops = N_strategic_cops # Slider: Adjust the percentage of strategic cops.
+        self.ethnic_distribution = ethnic_distribution
 
         # Initialise streetpatch agents.
         #----------------------------------------------------------------
         for x_k in range(width):
             for y_k in range(height):
                 """creates an agent with unique ID"""
-                i = 300000 + (x_k * height) + y_k
+                i = 30000 + (x_k * height) + y_k
                 position = (x_k, y_k)
                 risk = self.truncated_poisson(0.19, 6, 1) # Draw a random number from a poisson distribution.
                 crime_incidents = 0
@@ -177,53 +165,50 @@ class Map(Model):
             activity_nodes.append(list_of_risky_nodes[0])
             activity_nodes.append(list_of_risky_nodes[1])
             
-            # # Assign ethnicities to the population - Ethnic diversity in zone 1 and only whites in the other zones.
-            # if white_pop > 0:
-            #     white_pop -= 1
-            #     ethnicity = "white"
-            # elif other_pop > 0:
-            #     other_pop -= 1
-            #     ethnicity = "other"
-            # elif asian_pop > 0:
-            #     asian_pop -= 1
-            #     ethnicity = "asian"
-            # elif black_pop > 0:
-            #     black_pop -= 1
-            #     ethnicity = "black"    
-
-            # Assign ethnicities to the population - Uniform distribution
-            list_of_possible_ethn = []
-            pops = [white_pop, other_pop, asian_pop, black_pop]
-            for i in pops:
-                if i > 0:
-                    if i == white_pop:
-                        list_of_possible_ethn.append("white")
-                    elif i == other_pop:
-                        list_of_possible_ethn.append("other")     
-                    elif asian_pop > 0:
-                        list_of_possible_ethn.append("asian")
-                    elif black_pop > 0:
-                        list_of_possible_ethn.append("black")
+            # Assignment of ethnicities in the model:
+            if ethnic_distribution == 1:
+                # Assign ethnicities to the population - Ethnic diversity in zone 1 and only whites in the other zones.
+                if white_pop > 0:
+                    white_pop -= 1
+                    ethnicity = "white"
+                elif other_pop > 0:
+                    other_pop -= 1
+                    ethnicity = "other"
+                elif asian_pop > 0:
+                    asian_pop -= 1
+                    ethnicity = "asian"
+                elif black_pop > 0:
+                    black_pop -= 1
+                    ethnicity = "black"    
             
-            random_float = self.random.uniform(0, 100)
-            if random_float < 44.9 and "white" in list_of_possible_ethn:
-                ethnicity = "white"
-            elif 44.9 < random_float < 68.2 and "other" in list_of_possible_ethn:
-                ethnicity = "other"
-            elif 68.2 < random_float < 86.7 and "asian" in list_of_possible_ethn:
-                ethnicity = "asian"
-            else:
-                ethnicity = "black"
-
-            #ethnicity = self.random.choice(list_of_possible_ethn)
-            if ethnicity == "white":
-                white_pop -= 1
-            elif ethnicity == "other":
-                other_pop -= 1     
-            elif ethnicity == "asian":
-                asian_pop -= 1
-            elif ethnicity == "black":
-                black_pop -= 1     
+            elif ethnic_distribution == 2:
+                # Assign ethnicities to the population - Uniform distribution
+                list_of_possible_ethn = []
+                pops = [white_pop, other_pop, asian_pop, black_pop]
+                for i in pops:
+                    if i > 0:
+                        if i == white_pop:
+                            list_of_possible_ethn.append("white")
+                        elif i == other_pop:
+                            list_of_possible_ethn.append("other")     
+                        elif asian_pop > 0:
+                            list_of_possible_ethn.append("asian")
+                        elif black_pop > 0:
+                            list_of_possible_ethn.append("black")
+            
+                random_float = self.random.uniform(0, 100)
+                if random_float < 44.9 and "white" in list_of_possible_ethn:
+                    ethnicity = "white"
+                    white_pop -= 1
+                elif 44.9 < random_float < 68.2 and "other" in list_of_possible_ethn:
+                    ethnicity = "other"
+                    other_pop -= 1
+                elif 68.2 < random_float < 86.7 and "asian" in list_of_possible_ethn:
+                    ethnicity = "asian"
+                    asian_pop -= 1
+                else:
+                    ethnicity = "black"
+                    black_pop -= 1
 
             a = Civilian(i_k, 
             self, 
@@ -257,7 +242,7 @@ class Map(Model):
         patrol_3 = (self.num_cops/4) - (nr_of_officers/4)
 
         for j_k in range(self.num_cops):
-            cop_id = j_k + 20000000
+            cop_id = j_k + 20000
             prev_position = position
             moving = "moving" 
             timer = 0
@@ -266,7 +251,7 @@ class Map(Model):
             if nr_of_officers > 0:
                 nr_of_officers -= 1
                 hotspot_patrol = True
-                patrol_area = 1 # Starts at grid 1, but will move across the whole map.
+                patrol_area = self.random.choice([1,2,3,4]) 
             else:
                 hotspot_patrol = False    
                 # Create patrol areas for the cop agents
@@ -282,7 +267,8 @@ class Map(Model):
                 else:
                     patrol_area = 4
             
-            position = self.random_patrol_node_generator(patrol_area) 
+            position = self.random_patrol_node_generator(patrol_area)
+            
 
             # Assign random 1 random activity node. This will change everytime the cop arrives at the node.
             patrol_node = self.random_patrol_node_generator(patrol_area)
@@ -312,7 +298,7 @@ class Map(Model):
                 "Ethnicity": lambda a: getattr(a, "ethnicity", None),
                 "zone": lambda a: getattr(a, "zone", None),
                 "N_victimised": lambda a: getattr(a, "N_victimised", None),
-                "N_stop_searched": lambda a: getattr(a, "stop_searched", None),
+                "N_stop_searched": lambda a: getattr(a, "stop_searched", None)
             }
         )
 
@@ -386,7 +372,7 @@ class Map(Model):
         """
         Check if the model has reached its limit and then stop the simulation.
         """
-        if self.N_ticks == MONTH:
+        if self.N_ticks == RUN_LENGTH:
             self.running = False
         else:
             self.N_ticks += 1

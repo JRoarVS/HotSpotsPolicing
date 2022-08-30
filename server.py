@@ -9,19 +9,6 @@ from mesa.visualization.ModularVisualization import ModularServer
 from multiprocessing import freeze_support
 
 #----------------------------------------
-#GLOBAL PROCEDURES
-
-def getdata_model(model):
-    """A procedure that extracts model data from the datacollector"""
-    result = model.datacollector.get_model_vars_dataframe()
-    return result
-
-def getdata_model(model):
-    """A procedure that extracts agent data from the datacollector"""
-    result = model.datacollector.get_agent_vars_dataframe()
-    return result
-
-#----------------------------------------
 # Model parameters:
 HEIGHT = 103
 WIDTH = 100
@@ -31,6 +18,14 @@ N_AGENTS = 11402 # 11402
 # Data collection parameters:
 COLLECT_DATA = MONTH
 ITERATIONS = 1
+
+ETHNIC_DISTRIBUTION = 2
+# 1 = Homogenous distribution
+# 2 = Uniform distribution
+
+CPU = 2
+# 1 = Cluster
+# 2 = Local
 
 # Option for how the model should run:
 OPTION = 2 
@@ -115,7 +110,8 @@ if OPTION == 1: # Initiate the server through jupyter in browser to visualise.
         "N": N_AGENTS, 
         "NC": N_COPS, 
         "width": WIDTH, 
-        "height": HEIGHT
+        "height": HEIGHT,
+        "ethnic_distribution": ETHNIC_DISTRIBUTION
     }
 
     # Set up the server
@@ -138,43 +134,74 @@ elif OPTION == 2: # Collect data through batchrunner without visualisation:
         "N": N_AGENTS, 
         "NC": N_COPS, 
         "width": WIDTH, 
-        "height": HEIGHT
+        "height": HEIGHT,
+        "ethnic_distribution": ETHNIC_DISTRIBUTION
     }
 
     model_run = Map(model_params["N"], 
     model_params["NC"], 
     model_params["width"], 
     model_params["height"], 
-    model_params["N_strategic_cops"])
+    model_params["N_strategic_cops"],
+    model_params["ethnic_distribution"])
 
-    done = False
-    if __name__ == '__main__':
-        freeze_support()
+    if CPU == 1:
+        done = False
+        if __name__ == '__main__':
+            freeze_support()
+            results_batch = batchrunner.batch_run(
+                Map,
+                model_params,
+                iterations = ITERATIONS, 
+                number_processes= None,
+                data_collection_period = COLLECT_DATA,
+                display_progress= True
+            )
+            done = True
+
+        if done == True:
+            results_batch_df = pd.DataFrame(results_batch)
+            results_batch_df = results_batch_df.loc[:, results_batch_df.columns.intersection([
+            'iteration',
+            'Step',
+            'N_strategic_cops', 
+            'Victimised', 
+            'Stopped_Searched',
+            'AgentID',
+            'Ethnicity',
+            'zone',
+            'N_victimised',
+            'N_stop_searched',
+            'ethnic_distribution'])]
+            #results_batch_df = results_batch_df[results_batch_df['AgentID'] < 30000]
+            results_batch_df = results_batch_df[results_batch_df['AgentID'] < 15000]
+            results_batch_df.to_csv("simulation_data.csv")
+    
+    if CPU == 2:
         results_batch = batchrunner.batch_run(
-            Map,
-            model_params,
-            iterations = ITERATIONS, 
-            number_processes= None,
-            data_collection_period = COLLECT_DATA,
-            display_progress= True
-        )
-        done = True
+                Map,
+                model_params,
+                iterations = ITERATIONS, 
+                number_processes= 1,
+                data_collection_period = COLLECT_DATA,
+                display_progress= True
+            )
 
-    if done == True:
         results_batch_df = pd.DataFrame(results_batch)
         results_batch_df = results_batch_df.loc[:, results_batch_df.columns.intersection([
-        'iteration',
-        'Step',
-        'N_strategic_cops', 
-        'Victimised', 
-        'Stopped_Searched',
-        'AgentID',
-        'Ethnicity',
-        'zone',
-        'N_victimised',
-        'N_stop_searched'])]
-        results_batch_df = results_batch_df[results_batch_df['AgentID'] < 12000]
+            'iteration',
+            'Step',
+            'N_strategic_cops', 
+            'Victimised', 
+            'Stopped_Searched',
+            'AgentID',
+            'Ethnicity',
+            'zone',
+            'N_victimised',
+            'N_stop_searched',
+            'ethnic_distribution'])]
+        #results_batch_df = results_batch_df[results_batch_df['AgentID'] < 30000]
+        results_batch_df = results_batch_df[results_batch_df['AgentID'] < 15000]
         results_batch_df.to_csv("simulation_data.csv")
-
-        print(results_batch_df.keys())
-        print(results_batch_df.tail())
+        # print(results_batch_df.keys())
+        # print(results_batch_df.tail())

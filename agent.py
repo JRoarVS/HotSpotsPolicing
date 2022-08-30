@@ -7,14 +7,25 @@ from operator import attrgetter
 # GLOBAL VARIABLES:
 #--------------------------------------------------------------------------
 # Stop and search values:
-WHITE_STOP = 0.41
-OTHER_STOP = 0.05
-ASIAN_STOP = 0.16
-BLACK_STOP = 0.38
+WHITE_STOP = 4
+OTHER_STOP = 3
+ASIAN_STOP = 3.6
+BLACK_STOP = 4.4
+
+# WHITE_STOP = 5.734 # 11.2341667
+# OTHER_STOP = 5.585 # 11.085
+# ASIAN_STOP = 5.4625 # 10.9625
+# BLACK_STOP = 5.425 # 10.925
+
+WHITE_THRESHOLD = 11.2341667
+OTHER_THRESHOLD = 11.085
+ASIAN_THRESHOLD = 10.9625
+BLACK_THRESHOLD = 10.925
 
 # Threshold rates:
-ROBBERY_RATE = 17.25 # 17.2 produces an average of 39 robberies per month
-STOP_SEARCH_RATE = 12  # 22 produces an average of  22 stop and searches per month
+ROBBERY_RATE = 14.753 # 14.75 produces an average of 39 robberies per month
+STOP_SEARCH_RATE = 10.91  # 10.91 produces an average of  22 stop and searches per month
+
 
 #----------------------------------------------------------------
 class StreetPatch(Agent):
@@ -155,8 +166,6 @@ class Civilian(Agent):
         else:   
             if self.timer == 0:
                 self.moving = "moving"
-            else: 
-                self.timer -= 1
 
     def offend(self):
         """
@@ -185,7 +194,6 @@ class Civilian(Agent):
                         rational_choice_score = victim.attractiveness - guardianship + self.criminal_propensity + road_risk
                         self.offend_score = rational_choice_score
                         if rational_choice_score >= ROBBERY_RATE:
-                            print("Tot score:", rational_choice_score, "Attractiveness:", victim.attractiveness, "Guardianship:", guardianship, "Motivation:", self.criminal_propensity, "Risk:", road_risk)
                             victim.N_victimised += 1
                             if self.criminal_propensity < 20:
                                 self.time_to_offending = self.time_to_offending_again()
@@ -231,11 +239,15 @@ class Civilian(Agent):
         A single tick in the simulation. 
         One tick equals to one minute and the agent can move between 6 and 8 steps per tick. 
         """
+        if self.moving == "waiting":
+            self.timer -= 1 # Countdown timer
+
         run_times = self.travel_speed
         if run_times > 0:
             while run_times > 0:
                 run_times -= 1
                 self.move()
+                        
         # Calculate if a civilian will offend.
         self.offend()
         if 0 < self.criminal_propensity < 10:
@@ -280,6 +292,7 @@ class Cop(Agent):
         self.hotspot_patrol = hotspot_patrol
         self.patrol_area = patrol_area
         self.stopsearch_score = 0
+        self.time_at_hotspot = 0 # Time spent at hot spots is 15 mins (15 ticks)
 
     def move(self):
         """
@@ -288,7 +301,9 @@ class Cop(Agent):
         if self.moving == "moving":
             if self.pos == self.destination:
                 if self.hotspot_patrol:
-                    self.destination = self.hotspot_node_generator()
+                    if self.time_at_hotspot == 0:
+                        self.destination = self.hotspot_node_generator()
+                        self.time_at_hotspot = 15
                 else:
                     self.destination = self.random_patrol_node_generator()
             # Create list of possible neighbouring cells to move to. 
@@ -302,8 +317,11 @@ class Cop(Agent):
                         road_neighbours.append(agent.pos)
 
             # Check if agent has arrived. If agent has arrived at destination: set moving to "arrived". 
-            if self.destination == self.pos and self.moving == "moving":  
-                self.moving = "arrived"
+            if self.destination == self.pos and self.moving == "moving":
+                if self.hotspot_patrol == True: 
+                    self.moving = "at_the_scene"
+                elif self.hotspot_patrol == False:  
+                    self.moving = "arrived"      
 
             else:
                 # Creating empty lists for directing the agents.
@@ -331,6 +349,10 @@ class Cop(Agent):
         elif self.moving == "arrived":
             self.prev_pos = self.pos # Reset prev_pos
             self.moving = "moving"
+        
+        elif self.moving == "at_the_scene":
+            if self.time_at_hotspot == 0:
+                self.moving = "moving"
 
 
     def update_neighbors(self):
@@ -360,27 +382,44 @@ class Cop(Agent):
         """
         Gives a hotspot node to a cop agent.
         """       
+        hotspots_values = []
         hotspots = []
         roads = [obj for obj in self.model.schedule.agents if isinstance(obj, StreetPatch)]
 
         # Create a list of the top five crime hot spots.
-        for i in range(0,5):
-            hotspot = max(roads, key=attrgetter("crime_incidents"))#.pos
-            hotspots.append(hotspot.pos)
-            roads.remove(hotspot)
+        for _ in range(5):
+            hotspot_incidents = max(roads, key=attrgetter("crime_incidents")) # Get the max hot spots
+             
+            if hotspot_incidents.crime_incidents > 0: # Are there more than 1 incident?
+                hotspots_values.append(hotspot_incidents.crime_incidents) # Add the crime incident value to list
+                roads.remove(hotspot_incidents)  
+        if len(hotspots_values) > 0: 
+            for i in roads:
+                if i.crime_incidents == hotspots_values[0] and len(hotspots) < 5:
+                    hotspots.append(i.pos)
+                elif i.crime_incidents == hotspots_values[1] and len(hotspots) < 5:
+                    hotspots.append(i.pos)
+                elif i.crime_incidents == hotspots_values[2] and len(hotspots) < 5:
+                    hotspots.append(i.pos)
+                elif i.crime_incidents == hotspots_values[3] and len(hotspots) < 5:
+                    hotspots.append(i.pos)
+                elif i.crime_incidents == hotspots_values[4] and len(hotspots) < 5:
+                    hotspots.append(i.pos)
+                
+            hotspots = [*set(hotspots)] # Remove duplicates
 
         if len(hotspots) > 0:
-            xy = self.random.choice(hotspots) # Pick a random hot spot of the five.
+            destination_hotspot = self.random.choice(hotspots) # Pick a random hot spot of the five.
         else:
-            xy = self.random_patrol_node_generator() # If there has been no crime, then give random node.
-
-        return (xy)
+            destination_hotspot = self.random_patrol_node_generator() # If there has been no crime, then give random node.
+            
+        return destination_hotspot
 
     def stopsearch(self):
         """
         Stop and search a potential suspect in the same cell as an officer.
         """
-        #self.stopsearch_score = 0 # set/reset stop and search score
+        self.stopsearch_score = 0
         # Get information about agents on the same cell.
         same_cell = self.model.grid.get_cell_list_contents(self.pos)
         # Only select agents that are civilians
@@ -392,23 +431,22 @@ class Cop(Agent):
         if len(filtered_cell) > 1:
             suspect = self.random.choice([i for i in filtered_cell if i not in the_police])
             if suspect.ethnicity == 'white':
-                ethnic_appearance = WHITE_STOP * 10
+                ethnic_appearance = WHITE_STOP
+                prob_stop = WHITE_THRESHOLD
             elif suspect.ethnicity == 'other':
-                ethnic_appearance = OTHER_STOP * 10
+                ethnic_appearance = OTHER_STOP
+                prob_stop = OTHER_THRESHOLD
             elif suspect.ethnicity == 'asian':
-                ethnic_appearance = ASIAN_STOP * 10
+                ethnic_appearance = ASIAN_STOP
+                prob_stop = ASIAN_THRESHOLD
             elif suspect.ethnicity == 'black':
-                ethnic_appearance = BLACK_STOP * 10
-            else:
-                print("Non of the ethnics. I am:", suspect.ethnicity)
-                ethnic_appearance = 0
+                ethnic_appearance = BLACK_STOP
+                prob_stop = BLACK_THRESHOLD
             
             stop_search_probability = suspect.attractiveness + ethnic_appearance
-            self.stopsearch_score = stop_search_probability
 
-            if  stop_search_probability >= STOP_SEARCH_RATE:
+            if  stop_search_probability >= prob_stop:
                 suspect.stop_searched += 1
-            # print("I've been stopped and searched", suspect.stop_searched, "time(s).")
 
 
     def step(self):
@@ -416,6 +454,9 @@ class Cop(Agent):
         A single tick in the simulation. 
         One tick equals to one minute and the agent can move between 6 and 8 steps per tick. 
         """
+        if self.moving == "at_the_scene":
+            self.time_at_hotspot -= 1
+
         run_times = self.travel_speed
         if run_times > 0:
             while run_times > 0:
